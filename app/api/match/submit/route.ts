@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { GetCommand, UpdateCommand, PutCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
 import { getProblemById } from "@/lib/problems";
-import { runAllTestCases } from "@/lib/judge0";
+import { runAllTestCases } from "@/lib/piston";
 import { calcElo } from "@/lib/elo";
 
 export async function POST(req: Request) {
