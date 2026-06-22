@@ -13,9 +13,9 @@ export async function processMatchEnd(winnerId: string, loserId: string) {
   try {
     console.log(`[MatchEngine]: Initiating match finalization. Winner: ${winnerId} | Loser: ${loserId}`);
 
-    // ==========================================
-    // STEP 1: THE PULL (Fetch live profiles)
-    // ==========================================
+    
+    // STEP 1: Fetch live profiles
+    
     const [winnerRes, loserRes] = await Promise.all([
       dynamo.send(new GetCommand({
         TableName: TABLE,
@@ -31,9 +31,9 @@ export async function processMatchEnd(winnerId: string, loserId: string) {
     const winnerOldElo = winnerRes.Item?.elo ?? 1200;
     const loserOldElo = loserRes.Item?.elo ?? 1200;
 
-    // ==========================================
-    // STEP 2: THE COMPUTATION (Run ELO Logic)
-    // ==========================================
+   
+    // STEP 2: Run ELO Logic
+  
     const newWinnerElo = calcElo(winnerOldElo, loserOldElo, true);
     const newLoserElo = calcElo(loserOldElo, winnerOldElo, false);
 
@@ -41,11 +41,11 @@ export async function processMatchEnd(winnerId: string, loserId: string) {
     console.log(` -> Winner (${winnerId}): ${winnerOldElo} -> ${newWinnerElo}`);
     console.log(` -> Loser (${loserId}): ${loserOldElo} -> ${newLoserElo}`);
 
-    // ==========================================
-    // STEP 3: HIGH-CONCURRENCY WRITE (Atomic Commit)
-    // ==========================================
-    // We use TransactWriteCommand so BOTH players are updated simultaneously.
-    // If either player's ELO changed in the database while we were calculating, 
+    
+    // STEP 3: Atomic Commit
+   
+    // TransactWriteCommand so BOTH players are updated simultaneously.
+    // If either player's ELO changed in the database while calculating, 
     // the ConditionExpression fails, aborting the write to prevent data corruption.
     await dynamo.send(new TransactWriteCommand({
       TransactItems: [
