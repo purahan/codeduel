@@ -1,6 +1,6 @@
 import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
-import { dynamo, TABLE } from "./dynamo.ts";
-import { calcElo } from "./elo.ts";
+import { dynamo, TABLE } from "./dynamo";
+import { calcElo } from "./elo";
 
 /**
  * Core backend orchestrator to handle match finalization.

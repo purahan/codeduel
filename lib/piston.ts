@@ -121,8 +121,8 @@ export async function runAllTestCases(
   code: string,
   language: string,
   testCases: { input: string; expectedOutput: string }[],
-  _timeLimitMs: number,
-  _memoryLimitKb: number,
+  _timeLimitMs: number | undefined,
+  _memoryLimitKb: number | undefined,
   problemId: string
 ): Promise<{
   allPassed:    boolean;
