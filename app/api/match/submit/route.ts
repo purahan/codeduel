@@ -6,6 +6,7 @@ import { dynamo, TABLE } from "@/lib/dynamo";
 import { getProblemById } from "@/lib/problems";
 import { runAllTestCases } from "@/lib/piston";
 import { calcElo } from "@/lib/elo";
+import sql from "@/lib/postgres";
 
 export async function POST(req: Request) {
   try {
@@ -53,14 +54,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Problem not found" }, { status: 404 });
     }
 
-    // 6 — Run all test cases through Judge0/Piston
+    // 6 — Run all test cases through Piston (free, open-source sandbox)
     // NOTE: This network call creates a 1-5s processing delay where data states could drift
     const execution = await runAllTestCases(
       code,
       language,
       problem.testCases, // run ALL including hidden ones
       problem.timeLimit,
-      problem.memoryLimit
+      problem.memoryLimit,
+      problem.id
     );
 
     const myRole = isPlayer1 ? "player1" : "player2";
@@ -69,6 +71,7 @@ export async function POST(req: Request) {
     // 7 — Write submission record to DynamoDB
     const now = Date.now();
     const ttl = Math.floor(now / 1000) + 3600;
+    const dbStatus = execution.allPassed ? "accepted" : (execution.firstFailure?.status ?? "wrong_answer");
 
     await dynamo.send(
       new PutCommand({
@@ -80,7 +83,7 @@ export async function POST(req: Request) {
           userId,
           language,
           code,
-          status:      execution.allPassed ? "accepted" : (execution.firstFailure?.status ?? "wrong_answer"),
+          status:       dbStatus,
           testsPassed:  execution.passed,
           testsTotal:   execution.total,
           runtimeMs:    execution.runtimeMs,
@@ -89,6 +92,25 @@ export async function POST(req: Request) {
         },
       })
     );
+
+    // Sync submission to Aurora PostgreSQL
+    try {
+      const ghId = parseInt(userId);
+      await sql`
+        INSERT INTO submissions (
+          match_id, user_id, problem_id, language, code, status,
+          test_cases_passed, test_cases_total, runtime_ms, submitted_at
+        ) VALUES (
+          ${matchId},
+          (SELECT id FROM users WHERE github_id = ${ghId}),
+          (SELECT id FROM problems WHERE slug = ${problem.id}),
+          ${language}, ${code}, ${dbStatus},
+          ${execution.passed}, ${execution.total}, ${execution.runtimeMs}, NOW()
+        )
+      `;
+    } catch (err) {
+      console.error("Failed to sync submission to Postgres:", err);
+    }
 
     // 8 — Update player's submission status on the match META item
     await dynamo.send(
@@ -194,6 +216,32 @@ export async function POST(req: Request) {
           ],
         })
       );
+
+      // Sync match_results to Aurora PostgreSQL
+      try {
+        const durationSeconds = Math.floor((now - match.startedAt) / 1000);
+        const winnerGhId = parseInt(winner.userId);
+        const loserGhId = parseInt(loser.userId);
+
+        await sql`
+          INSERT INTO match_results (
+            match_id, problem_id, winner_id, loser_id,
+            winner_elo_before, winner_elo_after,
+            loser_elo_before, loser_elo_after,
+            duration_seconds, ended_by, played_at
+          ) VALUES (
+            ${matchId},
+            (SELECT id FROM problems WHERE slug = ${problem.id}),
+            (SELECT id FROM users WHERE github_id = ${winnerGhId}),
+            (SELECT id FROM users WHERE github_id = ${loserGhId}),
+            ${winner.elo}, ${newWinnerElo},
+            ${loser.elo}, ${newLoserElo},
+            ${durationSeconds}, 'submission', NOW()
+          )
+        `;
+      } catch (err) {
+        console.error("Failed to sync match_result to Postgres:", err);
+      }
 
       return NextResponse.json({
         result:       "accepted",

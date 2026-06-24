@@ -1,13 +1,13 @@
 # CodeDuel
 
-A real-time competitive coding platform where two developers race to solve the same problem. First to pass all test cases wins. ELO-based matchmaking, live opponent status, and an AI hint coach powered by Gemini.
+A real-time competitive coding platform where two developers race to solve the same problem. First to pass all test cases wins. ELO-based matchmaking, live opponent status, an AI hint coach, and an AI-assisted tiebreaker — all powered by Gemini.
 
 ## Tech Stack
 
-- **Frontend & API** — Next.js 15 (App Router), TypeScript, Tailwind CSS
+- **Frontend & API** — Next.js 16 (App Router), TypeScript, Tailwind CSS
 - **Database** — AWS DynamoDB (single-table design with GSI for leaderboards)
-- **Code Execution** — Judge0 sandboxed execution engine
-- **AI Hints** — Google Gemini 2.0 Flash
+- **Code Execution** — [Piston](https://github.com/engineer-man/piston) — free, open-source, no API key required
+- **AI Hints & Tiebreaker** — Google Gemini 2.0 Flash (`gemini-2.0-flash`)
 - **Auth** — NextAuth.js with GitHub OAuth
 - **Deployment** — Vercel
 
@@ -17,8 +17,8 @@ A real-time competitive coding platform where two developers race to solve the s
 Player A ──┐
            ├── Next.js API Routes ── DynamoDB (matches, leaderboard, queue)
 Player B ──┘         │
-                      ├── Judge0 (sandboxed code execution)
-                      └── Gemini API (Socratic hint generation)
+                      ├── Piston API (sandboxed code execution — Python, JS, C++, Java, TS)
+                      └── Gemini API (Socratic hint coach + tiebreaker narration)
 ```
 
 ## Getting Started
@@ -29,6 +29,21 @@ Player B ──┘         │
 4. Run `npm run dev`
 5. Open [http://localhost:3000](http://localhost:3000)
 
+## Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | DynamoDB access |
+| `AWS_SECRET_ACCESS_KEY` | DynamoDB access |
+| `AWS_REGION` | AWS region (e.g. `eu-north-1`) |
+| `GEMINI_API_KEY` | AI hints + tiebreaker narration |
+| `NEXTAUTH_SECRET` | NextAuth session signing |
+| `NEXTAUTH_URL` | App base URL |
+| `GITHUB_CLIENT_ID` | GitHub OAuth |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth |
+
+> **No `JUDGE0_API_KEY` or `ANTHROPIC_API_KEY` needed.** Piston is free and keyless; Gemini replaces Anthropic.
+
 ## DynamoDB Schema
 
 Single-table design. Key access patterns:
@@ -36,9 +51,21 @@ Single-table design. Key access patterns:
 | Entity | PK | SK | Notes |
 |---|---|---|---|
 | Match session | `MATCH#<id>` | `META` | TTL set to +1hr |
-| Player submission | `MATCH#<id>` | `SUB#<userId>` | |
+| Player submission | `MATCH#<id>` | `SUB#<userId>#<ts>` | |
 | User profile | `USER#<id>` | `PROFILE` | |
 | Leaderboard entry | `USER#<id>` | `LEADERBOARD` | GSI1PK=`LEADERBOARD#GLOBAL`, GSI1SK=elo (Number) |
+| Queue entry | `QUEUE#<userId>` | `WAITING` | TTL set to +5min |
+
+## AI Features
+
+### Hint Coach
+Three-tier Socratic hints per match (max 3 total):
+- **Tier 1** — Conceptual nudge (right data structure / algorithm family)
+- **Tier 2** — High-level approach (no code)
+- **Tier 3** — Concrete pseudocode sketch
+
+### Tiebreaker Judge
+When both players submit a correct solution within the same window, Piston measures actual runtime deterministically. Gemini then narrates _why_ one solution won (e.g. "O(n) vs O(n²)") — it explains the score, it doesn't set it.
 
 ## Built for
 

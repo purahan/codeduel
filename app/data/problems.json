@@ -1,482 +1,302 @@
 [
-{
-"id": "valid-anagram",
-"title": "Valid Anagram",
-"description": "Given two strings s and t, return true if t is an anagram of s, and false otherwise. Constraints: 1 <= s.length, t.length <= 5 * 10^4. s and t consist of lowercase English letters.",
-"difficulty": "easy",
-"tags": ["string", "hash-map"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": ""anagram"\n"nagaram"",
-"expectedOutput": "true",
-"isHidden": false
-},
-{
-"input": ""rat"\n"car"",
-"expectedOutput": "false",
-"isHidden": false
-},
-{
-"input": ""a"\n"a"",
-"expectedOutput": "true",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def isAnagram(s: str, t: str) -> bool:\n    pass",
-"javascript": "function isAnagram(s, t) {\n    \n}",
-"cpp": "bool isAnagram(string s, string t) {\n    return false;\n}",
-"java": "public boolean isAnagram(String s, String t) {\n    return false;\n}"
-}
-},
-{
-"id": "binary-search",
-"title": "Binary Search",
-"description": "Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, then return its index. Otherwise, return -1. Constraints: 1 <= nums.length <= 10^4. -10^4 < nums[i], target < 10^4. All the integers in nums are unique. nums is sorted in ascending order.",
-"difficulty": "easy",
-"tags": ["array", "binary-search"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[-1,0,3,5,9,12]\n9",
-"expectedOutput": "4",
-"isHidden": false
-},
-{
-"input": "[-1,0,3,5,9,12]\n2",
-"expectedOutput": "-1",
-"isHidden": false
-},
-{
-"input": "[5]\n5",
-"expectedOutput": "0",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def search(nums: list[int], target: int) -> int:\n    pass",
-"javascript": "function search(nums, target) {\n    \n}",
-"cpp": "int search(vector& nums, int target) {\n    return 0;\n}",
-"java": "public int search(int[] nums, int target) {\n    return 0;\n}"
-}
-},
-{
-"id": "palindrome-number",
-"title": "Palindrome Number",
-"description": "Given an integer x, return true if x is a palindrome, and false otherwise. Constraints: -2^31 <= x <= 2^31 - 1.",
-"difficulty": "easy",
-"tags": ["math", "string"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "121",
-"expectedOutput": "true",
-"isHidden": false
-},
-{
-"input": "-121",
-"expectedOutput": "false",
-"isHidden": false
-},
-{
-"input": "10",
-"expectedOutput": "false",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def isPalindrome(x: int) -> bool:\n    pass",
-"javascript": "function isPalindrome(x) {\n    \n}",
-"cpp": "bool isPalindrome(int x) {\n    return false;\n}",
-"java": "public boolean isPalindrome(int x) {\n    return false;\n}"
-}
-},
-{
-"id": "invert-binary-tree",
-"title": "Invert Binary Tree",
-"description": "Given the root of a binary tree, invert the tree, and return its root. Constraints: The number of nodes in the tree is in the range [0, 100]. -100 <= Node.val <= 100.",
-"difficulty": "easy",
-"tags": ["tree", "binary-tree"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[4,2,7,1,3,6,9]",
-"expectedOutput": "[4,7,2,9,6,3,1]",
-"isHidden": false
-},
-{
-"input": "[2,1,3]",
-"expectedOutput": "[2,3,1]",
-"isHidden": false
-},
-{
-"input": "[]",
-"expectedOutput": "[]",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def invertTree(root: Optional[TreeNode]) -> Optional[TreeNode]:\n    pass",
-"javascript": "function invertTree(root) {\n    \n}",
-"cpp": "TreeNode* invertTree(TreeNode* root) {\n    return nullptr;\n}",
-"java": "public TreeNode invertTree(TreeNode root) {\n    return null;\n}"
-}
-},
-{
-"id": "contains-duplicate",
-"title": "Contains Duplicate",
-"description": "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct. Constraints: 1 <= nums.length <= 10^5. -10^9 <= nums[i] <= 10^9.",
-"difficulty": "easy",
-"tags": ["array", "hash-map"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[1,2,3,1]",
-"expectedOutput": "true",
-"isHidden": false
-},
-{
-"input": "[1,2,3,4]",
-"expectedOutput": "false",
-"isHidden": false
-},
-{
-"input": "[1,1,1,3,3,4,3,2,4,2]",
-"expectedOutput": "true",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def containsDuplicate(nums: list[int]) -> bool:\n    pass",
-"javascript": "function containsDuplicate(nums) {\n    \n}",
-"cpp": "bool containsDuplicate(vector& nums) {\n    return false;\n}",
-"java": "public boolean containsDuplicate(int[] nums) {\n    return false;\n}"
-}
-},
-{
-"id": "longest-substring-without-repeating-characters",
-"title": "Longest Substring Without Repeating Characters",
-"description": "Given a string s, find the length of the longest substring without repeating characters. Constraints: 0 <= s.length <= 5 * 10^4. s consists of English letters, digits, symbols and spaces.",
-"difficulty": "medium",
-"tags": ["string", "sliding-window", "hash-map"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": ""abcabcbb"",
-"expectedOutput": "3",
-"isHidden": false
-},
-{
-"input": ""bbbbb"",
-"expectedOutput": "1",
-"isHidden": false
-},
-{
-"input": ""pwwkew"",
-"expectedOutput": "3",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def lengthOfLongestSubstring(s: str) -> int:\n    pass",
-"javascript": "function lengthOfLongestSubstring(s) {\n    \n}",
-"cpp": "int lengthOfLongestSubstring(string s) {\n    return 0;\n}",
-"java": "public int lengthOfLongestSubstring(String s) {\n    return 0;\n}"
-}
-},
-{
-"id": "course-schedule",
-"title": "Course Schedule",
-"description": "There are a total of numCourses courses you have to take, labeled from 0 to numCourses - 1. You are given an array prerequisites where prerequisites[i] = [ai, bi] indicates that you must take course bi first if you want to take course ai. Return true if you can finish all courses. Otherwise, return false. Constraints: 1 <= numCourses <= 2000. 0 <= prerequisites.length <= 5000. prerequisites[i].length == 2.",
-"difficulty": "medium",
-"tags": ["graph", "topological-sort"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "2\n[[1,0]]",
-"expectedOutput": "true",
-"isHidden": false
-},
-{
-"input": "2\n[[1,0],[0,1]]",
-"expectedOutput": "false",
-"isHidden": false
-},
-{
-"input": "3\n[[1,0],[2,1]]",
-"expectedOutput": "true",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def canFinish(numCourses: int, prerequisites: list[list[int]]) -> bool:\n    pass",
-"javascript": "function canFinish(numCourses, prerequisites) {\n    \n}",
-"cpp": "bool canFinish(int numCourses, vector<vector>& prerequisites) {\n    return false;\n}",
-"java": "public boolean canFinish(int numCourses, int[][] prerequisites) {\n    return false;\n}"
-}
-},
-{
-"id": "coin-change",
-"title": "Coin Change",
-"description": "You are given an integer array coins representing coins of different denominations and an integer amount representing a total amount of money. Return the fewest number of coins that you need to make up that amount. If that amount of money cannot be made up by any combination of the coins, return -1. Constraints: 1 <= coins.length <= 12. 1 <= coins[i] <= 2^31 - 1. 0 <= amount <= 10^4.",
-"difficulty": "medium",
-"tags": ["array", "dynamic-programming"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[1,2,5]\n11",
-"expectedOutput": "3",
-"isHidden": false
-},
-{
-"input": "[2]\n3",
-"expectedOutput": "-1",
-"isHidden": false
-},
-{
-"input": "[1]\n0",
-"expectedOutput": "0",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def coinChange(coins: list[int], amount: int) -> int:\n    pass",
-"javascript": "function coinChange(coins, amount) {\n    \n}",
-"cpp": "int coinChange(vector& coins, int amount) {\n    return 0;\n}",
-"java": "public int coinChange(int[] coins, int amount) {\n    return 0;\n}"
-}
-},
-{
-"id": "daily-temperatures",
-"title": "Daily Temperatures",
-"description": "Given an array of integers temperatures represents the daily temperatures, return an array answer such that answer[i] is the number of days you have to wait after the ith day to get a warmer temperature. If there is no future day for which this is possible, keep answer[i] == 0 instead. Constraints: 1 <= temperatures.length <= 10^5. 30 <= temperatures[i] <= 100.",
-"difficulty": "medium",
-"tags": ["array", "stack"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[73,74,75,71,69,72,76,73]",
-"expectedOutput": "[1,1,4,2,1,1,0,0]",
-"isHidden": false
-},
-{
-"input": "[30,40,50,60]",
-"expectedOutput": "[1,1,1,0]",
-"isHidden": false
-},
-{
-"input": "[30,60,90]",
-"expectedOutput": "[1,1,0]",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def dailyTemperatures(temperatures: list[int]) -> list[int]:\n    pass",
-"javascript": "function dailyTemperatures(temperatures) {\n    \n}",
-"cpp": "vector dailyTemperatures(vector& temperatures) {\n    return {};\n}",
-"java": "public int[] dailyTemperatures(int[] temperatures) {\n    return new int[]{};\n}"
-}
-},
-{
-"id": "combinations",
-"title": "Combinations",
-"description": "Given two integers n and k, return all possible combinations of k numbers chosen from the range [1, n]. You may return the answer in any order. Constraints: 1 <= n <= 20. 1 <= k <= n.",
-"difficulty": "medium",
-"tags": ["backtracking"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "4\n2",
-"expectedOutput": "[[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]",
-"isHidden": false
-},
-{
-"input": "1\n1",
-"expectedOutput": "[[1]]",
-"isHidden": false
-},
-{
-"input": "3\n3",
-"expectedOutput": "[[1,2,3]]",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def combine(n: int, k: int) -> list[list[int]]:\n    pass",
-"javascript": "function combine(n, k) {\n    \n}",
-"cpp": "vector<vector> combine(int n, int k) {\n    return {};\n}",
-"java": "public List<List> combine(int n, int k) {\n    return new ArrayList<>();\n}"
-}
-},
-{
-"id": "trapping-rain-water",
-"title": "Trapping Rain Water",
-"description": "Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining. Constraints: n == height.length. 1 <= n <= 2 * 10^4. 0 <= height[i] <= 10^5.",
-"difficulty": "hard",
-"tags": ["array", "two-pointers"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[0,1,0,2,1,0,1,3,2,1,2,1]",
-"expectedOutput": "6",
-"isHidden": false
-},
-{
-"input": "[4,2,0,3,2,5]",
-"expectedOutput": "9",
-"isHidden": false
-},
-{
-"input": "[1,2,3]",
-"expectedOutput": "0",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def trap(height: list[int]) -> int:\n    pass",
-"javascript": "function trap(height) {\n    \n}",
-"cpp": "int trap(vector& height) {\n    return 0;\n}",
-"java": "public int trap(int[] height) {\n    return 0;\n}"
-}
-},
-{
-"id": "reverse-nodes-in-k-group",
-"title": "Reverse Nodes in k-Group",
-"description": "Given the head of a linked list, reverse the nodes of the list k at a time, and return the modified list. k is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of k then left-out nodes, in the end, should remain as it is. You may not alter the values in the list's nodes, only nodes themselves may be changed. Constraints: The number of nodes in the list is in the range sz. 1 <= sz <= 5000. 0 <= Node.val <= 1000. 1 <= k <= sz.",
-"difficulty": "hard",
-"tags": ["linked-list", "recursion"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "[1,2,3,4,5]\n2",
-"expectedOutput": "[2,1,4,3,5]",
-"isHidden": false
-},
-{
-"input": "[1,2,3,4,5]\n3",
-"expectedOutput": "[3,2,1,4,5]",
-"isHidden": false
-},
-{
-"input": "[1,2,3,4,5]\n1",
-"expectedOutput": "[1,2,3,4,5]",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def reverseKGroup(head: Optional[ListNode], k: int) -> Optional[ListNode]:\n    pass",
-"javascript": "function reverseKGroup(head, k) {\n    \n}",
-"cpp": "ListNode* reverseKGroup(ListNode* head, int k) {\n    return nullptr;\n}",
-"java": "public ListNode reverseKGroup(ListNode head, int k) {\n    return null;\n}"
-}
-},
-{
-"id": "n-queens",
-"title": "N-Queens",
-"description": "The n-queens puzzle is the problem of placing n queens on an n x n chessboard such that no two queens attack each other. Given an integer n, return all distinct solutions to the n-queens puzzle. You may return the answer in any order. Each solution contains a distinct board configuration of the n-queens' placement, where 'Q' and '.' both indicate a queen and an empty space, respectively. Constraints: 1 <= n <= 9.",
-"difficulty": "hard",
-"tags": ["array", "backtracking"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": "4",
-"expectedOutput": "[[".Q..","...Q","Q...","..Q."],["..Q.","Q...","...Q",".Q.."]]",
-"isHidden": false
-},
-{
-"input": "1",
-"expectedOutput": "[["Q"]]",
-"isHidden": false
-},
-{
-"input": "2",
-"expectedOutput": "[]",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def solveNQueens(n: int) -> list[list[str]]:\n    pass",
-"javascript": "function solveNQueens(n) {\n    \n}",
-"cpp": "vector<vector> solveNQueens(int n) {\n    return {};\n}",
-"java": "public List<List> solveNQueens(int n) {\n    return new ArrayList<>();\n}"
-}
-},
-{
-"id": "edit-distance",
-"title": "Edit Distance",
-"description": "Given two strings word1 and word2, return the minimum number of operations required to convert word1 to word2. You have the following three operations permitted on a word: Insert a character, Delete a character, Replace a character. Constraints: 0 <= word1.length, word2.length <= 500. word1 and word2 consist of lowercase English letters.",
-"difficulty": "hard",
-"tags": ["string", "dynamic-programming"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": ""horse"\n"ros"",
-"expectedOutput": "3",
-"isHidden": false
-},
-{
-"input": ""intention"\n"execution"",
-"expectedOutput": "5",
-"isHidden": false
-},
-{
-"input": """\n"a"",
-"expectedOutput": "1",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def minDistance(word1: str, word2: str) -> int:\n    pass",
-"javascript": "function minDistance(word1, word2) {\n    \n}",
-"cpp": "int minDistance(string word1, string word2) {\n    return 0;\n}",
-"java": "public int minDistance(String word1, String word2) {\n    return 0;\n}"
-}
-},
-{
-"id": "word-ladder",
-"title": "Word Ladder",
-"description": "A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence of words beginWord -> s1 -> s2 -> ... -> sk such that: Every adjacent pair of words differs by a single letter. Every si for 1 <= i <= k is in wordList. Note that beginWord does not need to be in wordList. sk == endWord. Given two words, beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence from beginWord to endWord, or 0 if no such sequence exists. Constraints: 1 <= beginWord.length <= 10. endWord.length == beginWord.length. 1 <= wordList.length <= 5000. wordList[i].length == beginWord.length. beginWord, endWord, and wordList[i] consist of lowercase English letters. beginWord != endWord. All the words in wordList are unique.",
-"difficulty": "hard",
-"tags": ["graph", "breadth-first-search"],
-"timeLimit": 2000,
-"memoryLimit": 131072,
-"testCases": [
-{
-"input": ""hit"\n"cog"\n["hot","dot","dog","lot","log","cog"]",
-"expectedOutput": "5",
-"isHidden": false
-},
-{
-"input": ""hit"\n"cog"\n["hot","dot","dog","lot","log"]",
-"expectedOutput": "0",
-"isHidden": false
-},
-{
-"input": ""a"\n"c"\n["a","b","c"]",
-"expectedOutput": "2",
-"isHidden": true
-}
-],
-"starterCode": {
-"python": "def ladderLength(beginWord: str, endWord: str, wordList: list[str]) -> int:\n    pass",
-"javascript": "function ladderLength(beginWord, endWord, wordList) {\n    \n}",
-"cpp": "int ladderLength(string beginWord, string endWord, vector& wordList) {\n    return 0;\n}",
-"java": "public int ladderLength(String beginWord, String endWord, List wordList) {\n    return 0;\n}"
-}
-}
+  {
+    "id": "valid-anagram",
+    "title": "Valid Anagram",
+    "description": "Given two strings s and t, return true if t is an anagram of s, and false otherwise. Constraints: 1 <= s.length, t.length <= 5 * 10^4. s and t consist of lowercase English letters.",
+    "difficulty": "easy",
+    "tags": ["string", "hash-map"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "anagram\nnagaram", "expectedOutput": "true",  "isHidden": false },
+      { "input": "rat\ncar",         "expectedOutput": "false", "isHidden": false },
+      { "input": "a\na",             "expectedOutput": "true",  "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def isAnagram(s: str, t: str) -> bool:\n    pass",
+      "javascript": "function isAnagram(s, t) {\n    \n}",
+      "cpp":        "bool isAnagram(string s, string t) {\n    return false;\n}",
+      "java":       "public boolean isAnagram(String s, String t) {\n    return false;\n}"
+    }
+  },
+  {
+    "id": "binary-search",
+    "title": "Binary Search",
+    "description": "Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, then return its index. Otherwise, return -1. Constraints: 1 <= nums.length <= 10^4. -10^4 < nums[i], target < 10^4. All the integers in nums are unique. nums is sorted in ascending order.",
+    "difficulty": "easy",
+    "tags": ["array", "binary-search"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[-1,0,3,5,9,12]\n9", "expectedOutput": "4",  "isHidden": false },
+      { "input": "[-1,0,3,5,9,12]\n2", "expectedOutput": "-1", "isHidden": false },
+      { "input": "[5]\n5",              "expectedOutput": "0",  "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def search(nums: list[int], target: int) -> int:\n    pass",
+      "javascript": "function search(nums, target) {\n    \n}",
+      "cpp":        "int search(vector<int>& nums, int target) {\n    return 0;\n}",
+      "java":       "public int search(int[] nums, int target) {\n    return 0;\n}"
+    }
+  },
+  {
+    "id": "palindrome-number",
+    "title": "Palindrome Number",
+    "description": "Given an integer x, return true if x is a palindrome, and false otherwise. Constraints: -2^31 <= x <= 2^31 - 1.",
+    "difficulty": "easy",
+    "tags": ["math", "string"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "121",  "expectedOutput": "true",  "isHidden": false },
+      { "input": "-121", "expectedOutput": "false", "isHidden": false },
+      { "input": "10",   "expectedOutput": "false", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def isPalindrome(x: int) -> bool:\n    pass",
+      "javascript": "function isPalindrome(x) {\n    \n}",
+      "cpp":        "bool isPalindrome(int x) {\n    return false;\n}",
+      "java":       "public boolean isPalindrome(int x) {\n    return false;\n}"
+    }
+  },
+  {
+    "id": "invert-binary-tree",
+    "title": "Invert Binary Tree",
+    "description": "Given the root of a binary tree, invert the tree, and return its root. Constraints: The number of nodes in the tree is in the range [0, 100]. -100 <= Node.val <= 100.",
+    "difficulty": "easy",
+    "tags": ["tree", "binary-tree"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[4,2,7,1,3,6,9]", "expectedOutput": "[4,7,2,9,6,3,1]", "isHidden": false },
+      { "input": "[2,1,3]",         "expectedOutput": "[2,3,1]",         "isHidden": false },
+      { "input": "[]",              "expectedOutput": "[]",              "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def invertTree(root):\n    pass",
+      "javascript": "function invertTree(root) {\n    \n}",
+      "cpp":        "TreeNode* invertTree(TreeNode* root) {\n    return nullptr;\n}",
+      "java":       "public TreeNode invertTree(TreeNode root) {\n    return null;\n}"
+    }
+  },
+  {
+    "id": "contains-duplicate",
+    "title": "Contains Duplicate",
+    "description": "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct. Constraints: 1 <= nums.length <= 10^5. -10^9 <= nums[i] <= 10^9.",
+    "difficulty": "easy",
+    "tags": ["array", "hash-map"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[1,2,3,1]",           "expectedOutput": "true",  "isHidden": false },
+      { "input": "[1,2,3,4]",           "expectedOutput": "false", "isHidden": false },
+      { "input": "[1,1,1,3,3,4,3,2,4,2]", "expectedOutput": "true", "isHidden": true }
+    ],
+    "starterCode": {
+      "python":     "def containsDuplicate(nums: list[int]) -> bool:\n    pass",
+      "javascript": "function containsDuplicate(nums) {\n    \n}",
+      "cpp":        "bool containsDuplicate(vector<int>& nums) {\n    return false;\n}",
+      "java":       "public boolean containsDuplicate(int[] nums) {\n    return false;\n}"
+    }
+  },
+  {
+    "id": "longest-substring-without-repeating-characters",
+    "title": "Longest Substring Without Repeating Characters",
+    "description": "Given a string s, find the length of the longest substring without repeating characters. Constraints: 0 <= s.length <= 5 * 10^4. s consists of English letters, digits, symbols and spaces.",
+    "difficulty": "medium",
+    "tags": ["string", "sliding-window", "hash-map"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "abcabcbb", "expectedOutput": "3", "isHidden": false },
+      { "input": "bbbbb",    "expectedOutput": "1", "isHidden": false },
+      { "input": "pwwkew",   "expectedOutput": "3", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def lengthOfLongestSubstring(s: str) -> int:\n    pass",
+      "javascript": "function lengthOfLongestSubstring(s) {\n    \n}",
+      "cpp":        "int lengthOfLongestSubstring(string s) {\n    return 0;\n}",
+      "java":       "public int lengthOfLongestSubstring(String s) {\n    return 0;\n}"
+    }
+  },
+  {
+    "id": "course-schedule",
+    "title": "Course Schedule",
+    "description": "There are a total of numCourses courses you have to take, labeled from 0 to numCourses - 1. You are given an array prerequisites where prerequisites[i] = [ai, bi] indicates that you must take course bi first if you want to take course ai. Return true if you can finish all courses. Otherwise, return false. Constraints: 1 <= numCourses <= 2000. 0 <= prerequisites.length <= 5000. prerequisites[i].length == 2.",
+    "difficulty": "medium",
+    "tags": ["graph", "topological-sort"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "2\n[[1,0]]",        "expectedOutput": "true",  "isHidden": false },
+      { "input": "2\n[[1,0],[0,1]]",  "expectedOutput": "false", "isHidden": false },
+      { "input": "3\n[[1,0],[2,1]]",  "expectedOutput": "true",  "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def canFinish(numCourses: int, prerequisites: list[list[int]]) -> bool:\n    pass",
+      "javascript": "function canFinish(numCourses, prerequisites) {\n    \n}",
+      "cpp":        "bool canFinish(int numCourses, vector<vector<int>>& prerequisites) {\n    return false;\n}",
+      "java":       "public boolean canFinish(int numCourses, int[][] prerequisites) {\n    return false;\n}"
+    }
+  },
+  {
+    "id": "coin-change",
+    "title": "Coin Change",
+    "description": "You are given an integer array coins representing coins of different denominations and an integer amount representing a total amount of money. Return the fewest number of coins that you need to make up that amount. If that amount of money cannot be made up by any combination of the coins, return -1. Constraints: 1 <= coins.length <= 12. 1 <= coins[i] <= 2^31 - 1. 0 <= amount <= 10^4.",
+    "difficulty": "medium",
+    "tags": ["array", "dynamic-programming"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[1,2,5]\n11", "expectedOutput": "3",  "isHidden": false },
+      { "input": "[2]\n3",      "expectedOutput": "-1", "isHidden": false },
+      { "input": "[1]\n0",      "expectedOutput": "0",  "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def coinChange(coins: list[int], amount: int) -> int:\n    pass",
+      "javascript": "function coinChange(coins, amount) {\n    \n}",
+      "cpp":        "int coinChange(vector<int>& coins, int amount) {\n    return 0;\n}",
+      "java":       "public int coinChange(int[] coins, int amount) {\n    return 0;\n}"
+    }
+  },
+  {
+    "id": "daily-temperatures",
+    "title": "Daily Temperatures",
+    "description": "Given an array of integers temperatures represents the daily temperatures, return an array answer such that answer[i] is the number of days you have to wait after the ith day to get a warmer temperature. If there is no future day for which this is possible, keep answer[i] == 0 instead. Constraints: 1 <= temperatures.length <= 10^5. 30 <= temperatures[i] <= 100.",
+    "difficulty": "medium",
+    "tags": ["array", "stack"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[73,74,75,71,69,72,76,73]", "expectedOutput": "[1,1,4,2,1,1,0,0]", "isHidden": false },
+      { "input": "[30,40,50,60]",             "expectedOutput": "[1,1,1,0]",         "isHidden": false },
+      { "input": "[30,60,90]",                "expectedOutput": "[1,1,0]",           "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def dailyTemperatures(temperatures: list[int]) -> list[int]:\n    pass",
+      "javascript": "function dailyTemperatures(temperatures) {\n    \n}",
+      "cpp":        "vector<int> dailyTemperatures(vector<int>& temperatures) {\n    return {};\n}",
+      "java":       "public int[] dailyTemperatures(int[] temperatures) {\n    return new int[]{};\n}"
+    }
+  },
+  {
+    "id": "combinations",
+    "title": "Combinations",
+    "description": "Given two integers n and k, return all possible combinations of k numbers chosen from the range [1, n]. You may return the answer in any order. Constraints: 1 <= n <= 20. 1 <= k <= n.",
+    "difficulty": "medium",
+    "tags": ["backtracking"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "4\n2", "expectedOutput": "[[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]", "isHidden": false },
+      { "input": "1\n1", "expectedOutput": "[[1]]",                                 "isHidden": false },
+      { "input": "3\n3", "expectedOutput": "[[1,2,3]]",                             "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def combine(n: int, k: int) -> list[list[int]]:\n    pass",
+      "javascript": "function combine(n, k) {\n    \n}",
+      "cpp":        "vector<vector<int>> combine(int n, int k) {\n    return {};\n}",
+      "java":       "public List<List<Integer>> combine(int n, int k) {\n    return new ArrayList<>();\n}"
+    }
+  },
+  {
+    "id": "trapping-rain-water",
+    "title": "Trapping Rain Water",
+    "description": "Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining. Constraints: n == height.length. 1 <= n <= 2 * 10^4. 0 <= height[i] <= 10^5.",
+    "difficulty": "hard",
+    "tags": ["array", "two-pointers"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[0,1,0,2,1,0,1,3,2,1,2,1]", "expectedOutput": "6", "isHidden": false },
+      { "input": "[4,2,0,3,2,5]",              "expectedOutput": "9", "isHidden": false },
+      { "input": "[1,2,3]",                    "expectedOutput": "0", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def trap(height: list[int]) -> int:\n    pass",
+      "javascript": "function trap(height) {\n    \n}",
+      "cpp":        "int trap(vector<int>& height) {\n    return 0;\n}",
+      "java":       "public int trap(int[] height) {\n    return 0;\n}"
+    }
+  },
+  {
+    "id": "reverse-nodes-in-k-group",
+    "title": "Reverse Nodes in k-Group",
+    "description": "Given the head of a linked list, reverse the nodes of the list k at a time, and return the modified list. k is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of k then left-out nodes, in the end, should remain as it is. You may not alter the values in the list's nodes, only nodes themselves may be changed. Constraints: The number of nodes in the list is in the range sz. 1 <= sz <= 5000. 0 <= Node.val <= 1000. 1 <= k <= sz.",
+    "difficulty": "hard",
+    "tags": ["linked-list", "recursion"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "[1,2,3,4,5]\n2", "expectedOutput": "[2,1,4,3,5]", "isHidden": false },
+      { "input": "[1,2,3,4,5]\n3", "expectedOutput": "[3,2,1,4,5]", "isHidden": false },
+      { "input": "[1,2,3,4,5]\n1", "expectedOutput": "[1,2,3,4,5]", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def reverseKGroup(head, k: int):\n    pass",
+      "javascript": "function reverseKGroup(head, k) {\n    \n}",
+      "cpp":        "ListNode* reverseKGroup(ListNode* head, int k) {\n    return nullptr;\n}",
+      "java":       "public ListNode reverseKGroup(ListNode head, int k) {\n    return null;\n}"
+    }
+  },
+  {
+    "id": "n-queens",
+    "title": "N-Queens",
+    "description": "The n-queens puzzle is the problem of placing n queens on an n x n chessboard such that no two queens attack each other. Given an integer n, return all distinct solutions to the n-queens puzzle. You may return the answer in any order. Each solution contains a distinct board configuration of the n-queens placement, where 'Q' and '.' both indicate a queen and an empty space, respectively. Constraints: 1 <= n <= 9.",
+    "difficulty": "hard",
+    "tags": ["array", "backtracking"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "4", "expectedOutput": "[['.Q..','...Q','Q...','..Q.'],['..Q.','Q...','...Q','.Q..']]", "isHidden": false },
+      { "input": "1", "expectedOutput": "[['Q']]",                                                         "isHidden": false },
+      { "input": "2", "expectedOutput": "[]",                                                              "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def solveNQueens(n: int) -> list[list[str]]:\n    pass",
+      "javascript": "function solveNQueens(n) {\n    \n}",
+      "cpp":        "vector<vector<string>> solveNQueens(int n) {\n    return {};\n}",
+      "java":       "public List<List<String>> solveNQueens(int n) {\n    return new ArrayList<>();\n}"
+    }
+  },
+  {
+    "id": "edit-distance",
+    "title": "Edit Distance",
+    "description": "Given two strings word1 and word2, return the minimum number of operations required to convert word1 to word2. You have the following three operations permitted on a word: Insert a character, Delete a character, Replace a character. Constraints: 0 <= word1.length, word2.length <= 500. word1 and word2 consist of lowercase English letters.",
+    "difficulty": "hard",
+    "tags": ["string", "dynamic-programming"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "horse\nros",       "expectedOutput": "3", "isHidden": false },
+      { "input": "intention\nexecution", "expectedOutput": "5", "isHidden": false },
+      { "input": "\na",             "expectedOutput": "1", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def minDistance(word1: str, word2: str) -> int:\n    pass",
+      "javascript": "function minDistance(word1, word2) {\n    \n}",
+      "cpp":        "int minDistance(string word1, string word2) {\n    return 0;\n}",
+      "java":       "public int minDistance(String word1, String word2) {\n    return 0;\n}"
+    }
+  },
+  {
+    "id": "word-ladder",
+    "title": "Word Ladder",
+    "description": "A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence of words where every adjacent pair of words differs by a single letter and every intermediate word is in wordList. Given two words beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence from beginWord to endWord, or 0 if no such sequence exists. Constraints: 1 <= beginWord.length <= 10. endWord.length == beginWord.length. 1 <= wordList.length <= 5000. beginWord != endWord. All words are lowercase English letters.",
+    "difficulty": "hard",
+    "tags": ["graph", "breadth-first-search"],
+    "timeLimit": 2000,
+    "memoryLimit": 131072,
+    "testCases": [
+      { "input": "hit\ncog\n[hot,dot,dog,lot,log,cog]", "expectedOutput": "5", "isHidden": false },
+      { "input": "hit\ncog\n[hot,dot,dog,lot,log]",     "expectedOutput": "0", "isHidden": false },
+      { "input": "a\nc\n[a,b,c]",                       "expectedOutput": "2", "isHidden": true  }
+    ],
+    "starterCode": {
+      "python":     "def ladderLength(beginWord: str, endWord: str, wordList: list[str]) -> int:\n    pass",
+      "javascript": "function ladderLength(beginWord, endWord, wordList) {\n    \n}",
+      "cpp":        "int ladderLength(string beginWord, string endWord, vector<string>& wordList) {\n    return 0;\n}",
+      "java":       "public int ladderLength(String beginWord, String endWord, List<String> wordList) {\n    return 0;\n}"
+    }
+  }
 ]

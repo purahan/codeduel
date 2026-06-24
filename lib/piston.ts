@@ -1,6 +1,12 @@
 // Piston API — free, open source, no API key required
 // Docs: https://github.com/engineer-man/piston
 
+import { exec } from "child_process";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
+import { generatePythonWrapper, generateJavascriptWrapper } from "./wrappers";
+
 const PISTON_URL = "https://emkc.org/api/v2/piston";
 
 const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
@@ -24,7 +30,8 @@ async function runSingle(
   code: string,
   language: string,
   input: string,
-  expectedOutput: string
+  expectedOutput: string,
+  problemId: string
 ): Promise<ExecutionResult> {
   const lang = LANGUAGE_MAP[language];
   if (!lang) {
@@ -35,33 +42,69 @@ async function runSingle(
     };
   }
 
-  const start = Date.now();
+  // Piston API is dead (whitelist only), falling back to local execution!
+  let run: any = { stdout: "", stderr: "" };
+  let runtimeMs = 0;
 
-  const res = await fetch(`${PISTON_URL}/execute`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      language: lang.language,
-      version:  lang.version,
-      files:    [{ content: code }],
-      stdin:    input,
-    }),
-  });
+  if (language === "python" || language === "javascript") {
+    const ext = language === "python" ? ".py" : ".js";
+    const cmd = language === "python" ? "python3" : "node";
+    const tmpFile = path.join(os.tmpdir(), `code_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+    
+    let finalCode = code;
+    if (language === "python") {
+      finalCode = generatePythonWrapper(code, problemId);
+    } else if (language === "javascript") {
+      finalCode = generateJavascriptWrapper(code, problemId);
+    }
 
-  const runtimeMs = Date.now() - start;
-  const data = await res.json();
-  const run = data.run;
+    await fs.writeFile(tmpFile, finalCode);
+    
+    const start = Date.now();
+    try {
+      const result = await new Promise<{stdout: string, stderr: string}>((resolve, reject) => {
+        const child = exec(`${cmd} ${tmpFile}`, { timeout: 3000 }, (error, stdout, stderr) => {
+          if (error && error.killed) reject(new Error("Timeout"));
+          else resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
+        });
+        if (input && child.stdin) {
+          child.stdin.write(input);
+          child.stdin.end();
+        }
+      });
+      run.stdout = result.stdout;
+      run.stderr = result.stderr;
+    } catch (err: any) {
+      run.stderr = err.message || "Execution failed";
+    }
+    runtimeMs = Date.now() - start;
+    await fs.unlink(tmpFile).catch(() => {});
+  } else {
+    return {
+      passed: false, status: "unsupported_language",
+      runtimeMs: null, memoryKb: null,
+      stderr: "Local fallback currently only supports Python and JavaScript. Piston API is disabled.", stdout: null,
+    };
+  }
 
   const actualOutput = (run?.stdout ?? "").trim();
   const expected     = expectedOutput.trim();
   const passed       = actualOutput === expected;
 
   if (run?.stderr && !passed) {
+    console.error("PISTON ERROR:", run.stderr);
     return {
       passed: false, status: "runtime_error",
       runtimeMs, memoryKb: null,
       stderr: run.stderr, stdout: run.stdout,
     };
+  }
+
+  if (!passed) {
+    console.log("PISTON WRONG ANSWER:");
+    console.log("  Input:", input);
+    console.log("  Expected:", expected);
+    console.log("  Actual:", actualOutput);
   }
 
   return {
@@ -79,7 +122,8 @@ export async function runAllTestCases(
   language: string,
   testCases: { input: string; expectedOutput: string }[],
   _timeLimitMs: number,
-  _memoryLimitKb: number
+  _memoryLimitKb: number,
+  problemId: string
 ): Promise<{
   allPassed:    boolean;
   passed:       number;
@@ -92,7 +136,7 @@ export async function runAllTestCases(
   let totalRuntime = 0;
 
   for (const tc of testCases) {
-    const result = await runSingle(code, language, tc.input, tc.expectedOutput);
+    const result = await runSingle(code, language, tc.input, tc.expectedOutput, problemId);
 
     if (result.passed) {
       passed++;

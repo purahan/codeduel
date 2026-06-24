@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "./providers";
+import GlobalToaster from "@/components/GlobalToaster";
+import CursorGlow from "@/components/CursorGlow";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,10 +28,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <CursorGlow />
+          <GlobalToaster />
+          {children}
+        </Providers>
       </body>
     </html>
   );
