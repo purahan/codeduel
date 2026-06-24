@@ -42,10 +42,11 @@ export default function FriendsPage() {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
-  const loadFriends = () => {
-    fetch("/api/friends")
-      .then(r => r.json())
-      .then(d => {
+  const loadFriends = async () => {
+    try {
+      const r = await fetch("/api/friends");
+      if (r.ok) {
+        const d = await r.json();
         if (!d.error) {
           setFriends(d.friends || []);
           localStorage.setItem("friends_friends", JSON.stringify(d.friends || []));
@@ -59,18 +60,23 @@ export default function FriendsPage() {
           setIncomingChallenges(d.incomingChallenges || []);
           localStorage.setItem("friends_chal", JSON.stringify(d.incomingChallenges || []));
         }
-        setIsLoaded(true);
-      })
-      .catch(() => setIsLoaded(true));
-      
-    // Poll for active match in case someone accepted our challenge
-    fetch("/api/match/find")
-      .then(r => r.json())
-      .then(d => {
-        if (d.matchId) {
-          router.push(`/match/${d.matchId}`);
+      }
+    } catch (err) {
+      console.error("Failed to load friends:", err);
+    } finally {
+      setIsLoaded(true);
+    }
+
+    try {
+      // Poll for active match in case someone accepted our challenge
+      const rMatch = await fetch("/api/match/find");
+      if (rMatch.ok) {
+        const dMatch = await rMatch.json();
+        if (dMatch.matchId) {
+          router.push(`/match/${dMatch.matchId}`);
         }
-      });
+      }
+    } catch (err) {}
   };
 
   useEffect(() => {
