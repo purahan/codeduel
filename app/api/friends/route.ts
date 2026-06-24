@@ -45,7 +45,7 @@ export async function GET() {
       FilterExpression: "#ttl > :now",
       ExpressionAttributeNames: { "#ttl": "ttl" },
       ExpressionAttributeValues: { 
-        ":pk": `CHALLENGE#${session.user.id}`, 
+        ":pk": `CHALLENGE#${(session.user as any).id}`, 
         ":sk": "CHALLENGE#",
         ":now": nowSec
       }

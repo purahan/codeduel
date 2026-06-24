@@ -5,7 +5,7 @@ import { GetCommand } from "@aws-sdk/lib-dynamodb";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  if (!(session?.user as any)?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -13,7 +13,7 @@ export async function GET() {
     const result = await dynamo.send(
       new GetCommand({
         TableName: TABLE,
-        Key: { PK: `USER#${session.user.id}`, SK: "PROFILE" },
+        Key: { PK: `USER#${(session.user as any).id}`, SK: "PROFILE" },
       })
     );
 
@@ -26,7 +26,7 @@ export async function GET() {
     const losses = item.losses ?? 0;
 
     return Response.json({
-      userId: session.user.id,
+      userId: (session.user as any).id,
       username: item.username ?? session.user.name ?? "Coder",
       avatar: item.avatar ?? session.user.image ?? null,
       elo: item.elo ?? 1200,
