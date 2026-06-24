@@ -6,6 +6,8 @@ export interface Problem {
   description: string;
   difficulty: Difficulty;
   tags: string[];
+  timeLimit?: number;
+  memoryLimit?: number;
   testCases: TestCase[];
   starterCode: Record<string, string>; // language -> starter code
 }
