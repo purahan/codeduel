@@ -333,6 +333,14 @@ export default function Dashboard() {
           setJoinedDate(dateStr);
           localStorage.setItem("dash_joinedDate", dateStr);
         }
+      } else if (meData) {
+        // Fallback if Postgres user record isn't fully synced yet
+        const history = [
+          { label: "Start", elo: meData.elo },
+          { label: "Today", elo: meData.elo }
+        ];
+        setEloHistory(history);
+        localStorage.setItem("dash_eloHistory", JSON.stringify(history));
       }
       setIsLoaded(true);
     })
