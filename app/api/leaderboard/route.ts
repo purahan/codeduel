@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     // Query the GSI — sorted by ELO (GSI1SK) descending
