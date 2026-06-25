@@ -348,6 +348,7 @@ export default function MatchArena() {
   };
 
   // ── Forfeit Match ──────────────────────────────────────────────────────────
+  
   const handleForfeit = async () => {
     if (exiting || matchOver) return;
     
@@ -363,9 +364,13 @@ export default function MatchArena() {
       });
       
       if (res.ok) {
+        // Stop tracking locally
         stopPolling();
         if (timerRef.current) clearInterval(timerRef.current);
-        router.push("/dashboard");
+        
+        // Force a hard browser redirect instead of a Next.js soft route
+        // This guarantees the UI instantly unmounts and grabs fresh database info
+        window.location.href = "/dashboard";
       } else {
         const data = await res.json();
         alert(`Failed to forfeit: ${data.message || data.error}`);
