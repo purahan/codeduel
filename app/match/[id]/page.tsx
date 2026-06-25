@@ -153,6 +153,14 @@ export default function MatchArena() {
 
   const myId = (session?.user as any)?.id as string | undefined;
 
+  // ── Poll opponent status every 3s ──────────────────────────────────────────
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
   // ── Redirect if not authed ─────────────────────────────────────────────────
   // ── Poll opponent status every 3s ──────────────────────────────────────────
   useEffect(() => {
@@ -283,43 +291,9 @@ export default function MatchArena() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, matchId]);
 
-  // ── Poll opponent status every 3s ──────────────────────────────────────────
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
+  
 
-  useEffect(() => {
-    if (!match || match.status !== "active") return; // Changed to !== "active"
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/match/${matchId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setMatch(data.match);
-
-        if (data.match.status !== "active") { // Changed to !== "active"
-          
-          // Show alert to Player B if Player A forfeited
-          if (data.match.status === "forfeited" && match?.status === "active") {
-            alert("The opponent has forfeited the match! You win by default.");
-          }
-
-          setMatchOver(true);
-          setWon(resolveWon(data.match, myId));
-          stopPolling();
-          if (timerRef.current) clearInterval(timerRef.current);
-        }
-      } catch {
-        // keep polling
-      }
-    }, 3000);
-
-    return () => stopPolling();
-  }, [match?.status, matchId, myId, stopPolling]);
+  
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
