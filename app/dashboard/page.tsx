@@ -601,6 +601,32 @@ export default function Dashboard() {
               Find Match
             </button>
           )}
+          <button
+  onClick={() => signOut({ callbackUrl: "/" })}
+  title="Sign out"
+  style={{
+    width: 30, height: 30, borderRadius: "50%",
+    background: "rgba(248,113,113,0.08)",
+    border: "1px solid rgba(248,113,113,0.2)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", color: "var(--red)",
+    transition: "background .15s, border-color .15s",
+  }}
+  onMouseEnter={e => {
+    e.currentTarget.style.background = "rgba(248,113,113,0.18)";
+    e.currentTarget.style.borderColor = "rgba(248,113,113,0.45)";
+  }}
+  onMouseLeave={e => {
+    e.currentTarget.style.background = "rgba(248,113,113,0.08)";
+    e.currentTarget.style.borderColor = "rgba(248,113,113,0.2)";
+  }}
+>
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+</button>
           <div style={{ position: "relative" }}>
             <div 
               className="avatar-btn" 
