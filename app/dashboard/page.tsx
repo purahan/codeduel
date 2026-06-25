@@ -213,9 +213,9 @@ function ActivityCalendar({ data, joinedDate }: { data: Record<string, number>, 
 }
 
 const PROBLEMS = [
-  { title: "Merge Intervals",     diff: "medium", tags: ["arrays","sorting"] },
-  { title: "Trapping Rain Water", diff: "hard",   tags: ["two-pointers","dp"] },
-  { title: "Valid Anagram",       diff: "easy",   tags: ["hash-map","string"] },
+  { id: "merge-intervals",     title: "Merge Intervals",     diff: "medium", tags: ["arrays","sorting"] },
+  { id: "trapping-rain-water", title: "Trapping Rain Water", diff: "hard",   tags: ["two-pointers","dp"] },
+  { id: "valid-anagram",       title: "Valid Anagram",       diff: "easy",   tags: ["hash-map","string"] },
 ];
 const MOCK_MATCHES = [
   { opponent: "CodeMaster99", problem: "Two Sum",     result: "Win",  elo: +14, ago: "2h ago"  },
@@ -897,7 +897,14 @@ export default function Dashboard() {
                   {p.diff}
                 </div>
                 <div className="prob-name">{p.title}</div>
-                <span className="prob-action">Practice →</span>
+                <button 
+                  className="prob-action" 
+                  onClick={() => handleFindMatch(p.id)}
+                  disabled={matchState === "queued"}
+                  style={{ background: "none", border: "none", cursor: matchState === "queued" ? "not-allowed" : "pointer", opacity: matchState === "queued" ? 0.5 : 1 }}
+                >
+                  {matchState === "queued" ? "Queued..." : "Practice →"}
+                </button>
               </div>
             ))}
           </div>

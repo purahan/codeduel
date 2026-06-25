@@ -16,11 +16,17 @@ export function useMatchmaking() {
     }
   }, []);
 
-  const handleFindMatch = useCallback(async () => {
+  const handleFindMatch = useCallback(async (problemId?: string) => {
     if (matchState !== "idle") return;
     setMatchState("queued");
+    const body = problemId ? JSON.stringify({ problemId }) : undefined;
+    
     try {
-      const res = await fetch("/api/match/create", { method: "POST" });
+      const res = await fetch("/api/match/create", { 
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body
+      });
       const data = await res.json();
 
       if (data.matchId && res.ok) {
@@ -36,7 +42,11 @@ export function useMatchmaking() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/match/create", { method: "POST" });
+        const res = await fetch("/api/match/create", { 
+          method: "POST",
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body
+        });
         const data = await res.json();
         if (data.matchId) {
           stopPolling();

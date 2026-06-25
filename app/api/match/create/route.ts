@@ -6,12 +6,12 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
-import { getRandomProblem } from "@/lib/problems";
+import { getRandomProblem, getProblemById } from "@/lib/problems";
 import { v4 as uuidv4 } from "uuid";
 
 const MATCH_DURATION_MS = 15 * 60 * 1000;
 
-export async function POST() {
+export async function POST(req: Request) {
   // 1 — Auth
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -20,6 +20,12 @@ export async function POST() {
 
   const userId   = (session.user as any).id as string;
   const username = session.user.name ?? "anonymous";
+
+  let requestedProblemId: string | undefined = undefined;
+  try {
+    const body = await req.json();
+    requestedProblemId = body.problemId;
+  } catch (err) {}
 
   // 2 — Get current ELO
   const userItem = await dynamo.send(
@@ -87,7 +93,9 @@ export async function POST() {
   );
 
   const eligible = (queueScan.Items ?? []).filter(
-    (item) => Math.abs((item.elo ?? 1200) - myElo) <= 200
+    (item) => 
+      Math.abs((item.elo ?? 1200) - myElo) <= 200 &&
+      (!requestedProblemId || !item.requestedProblemId || item.requestedProblemId === requestedProblemId)
   );
 
   // 6a — Opponent found: atomically claim them then create the match
@@ -112,7 +120,8 @@ export async function POST() {
       }
 
       const matchId = uuidv4();
-      const problem = getRandomProblem();
+      const finalProblemId = requestedProblemId || opponent.requestedProblemId;
+      const problem = finalProblemId ? (getProblemById(finalProblemId) || getRandomProblem()) : getRandomProblem();
       const now     = Date.now();
       const ttl     = Math.floor(now / 1000) + 3600;
 
@@ -174,6 +183,7 @@ export async function POST() {
         elo:      myElo,
         queuedAt: Date.now(),
         ttl,
+        requestedProblemId,
       },
     })
   );
