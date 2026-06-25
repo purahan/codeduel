@@ -59,9 +59,17 @@ export async function POST(req: Request) {
     const winnerId = winnerObj.userId;
     const loserId  = loserObj.userId;
 
-    // Calculate the point delta
-    const newWinnerElo = calcElo(winnerObj.elo, loserObj.elo, true);
-    const newLoserElo  = calcElo(loserObj.elo, winnerObj.elo, false);
+    // Fetch the live profile ELOs instead of relying on the old match snapshot
+    const [winnerRes, loserRes] = await Promise.all([
+      dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${winnerId}`, SK: "PROFILE" } })),
+      dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
+    ]);
+
+    const liveWinnerElo = winnerRes.Item?.elo ?? winnerObj.elo;
+    const liveLoserElo  = loserRes.Item?.elo ?? loserObj.elo;
+
+    const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
+    const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
 
     const now = Date.now();
 
@@ -91,11 +99,11 @@ export async function POST(req: Request) {
               TableName: TABLE,
               Key: { PK: `USER#${winnerId}`, SK: "PROFILE" },
               UpdateExpression: "SET elo = :elo ADD wins :one",
-              ConditionExpression: "elo = :oldElo",
+              ConditionExpression: "elo = :liveElo",
               ExpressionAttributeValues: {
-                ":elo":    newWinnerElo,
-                ":oldElo": winnerObj.elo,
-                ":one":    1
+                ":elo":     newWinnerElo,
+                ":liveElo": liveWinnerElo,
+                ":one":     1
               }
             }
           },
@@ -121,11 +129,11 @@ export async function POST(req: Request) {
               TableName: TABLE,
               Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
               UpdateExpression: "SET elo = :elo ADD losses :one",
-              ConditionExpression: "elo = :oldElo",
+              ConditionExpression: "elo = :liveElo",
               ExpressionAttributeValues: {
-                ":elo":    newLoserElo,
-                ":oldElo": loserObj.elo,
-                ":one":    1
+                ":elo":     newLoserElo,
+                ":liveElo": liveLoserElo,
+                ":one":     1
               }
             }
           },
