@@ -134,6 +134,9 @@ export default function MatchArena() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
 
+  // Forfeit state
+  const [exiting, setExiting] = useState(false);
+
   // Hint state
   const [hintLoading, setHintLoading] = useState(false);
   const [hints, setHints] = useState<{ text: string; tier: number }[]>([]);
@@ -344,6 +347,36 @@ export default function MatchArena() {
     }
   };
 
+  // ── Forfeit Match ──────────────────────────────────────────────────────────
+  const handleForfeit = async () => {
+    if (exiting || matchOver) return;
+    
+    const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
+    if (!confirm) return;
+
+    setExiting(true);
+    try {
+      const res = await fetch("/api/match/forfeit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId }),
+      });
+      
+      if (res.ok) {
+        stopPolling();
+        if (timerRef.current) clearInterval(timerRef.current);
+        router.push("/dashboard");
+      } else {
+        const data = await res.json();
+        alert(`Failed to forfeit: ${data.message || data.error}`);
+        setExiting(false);
+      }
+    } catch (e) {
+      alert("Network error occurred.");
+      setExiting(false);
+    }
+  };
+
   // ── Hint ───────────────────────────────────────────────────────────────────
   const handleHint = async () => {
     if (hintLoading || hintsRemaining <= 0) return;
@@ -534,6 +567,25 @@ export default function MatchArena() {
               </div>
             </div>
           </div>
+
+          {/* Forfeit Button */}
+          <button
+            onClick={handleForfeit}
+            disabled={exiting || submitting}
+            style={{
+              ...s.exitBtn,
+              opacity: exiting ? 0.5 : 1,
+              cursor: exiting || submitting ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={(e) => { 
+              if (!exiting && !submitting) {
+                e.currentTarget.style.background = "rgba(248,113,113,0.1)"; 
+              }
+            }}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            {exiting ? "Leaving..." : "Forfeit"}
+          </button>
 
           {/* Submit button */}
           <button
@@ -811,6 +863,15 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex", alignItems: "center", justifyContent: "center",
     color: "#8b8eff", fontFamily: "JetBrains Mono, monospace", fontSize: 11, fontWeight: 700,
     flexShrink: 0,
+  },
+  exitBtn: {
+    background: "transparent", color: "#f87171",
+    border: "1px solid rgba(248,113,113,0.3)", borderRadius: 8,
+    padding: "8px 16px", fontSize: 13, fontWeight: 600,
+    fontFamily: "Inter, sans-serif", transition: "all 0.15s", 
+    flexShrink: 0,
+    marginLeft: "4px",
+    marginRight: "4px"
   },
   submitBtn: {
     background: "#7cff6b", color: "#0b0c0e",
