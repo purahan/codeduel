@@ -289,6 +289,7 @@ export default function Dashboard() {
     return false;
   });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [selectedProblem, setSelectedProblem] = useState<{id: string, title: string} | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -602,7 +603,7 @@ export default function Dashboard() {
           {matchState === "queued" ? (
             <button className="find-btn find-btn-cancel" onClick={handleCancel}>Cancel search</button>
           ) : (
-            <button className="find-btn find-btn-idle" onClick={() => setShowMatchModal(true)}>
+            <button className="find-btn find-btn-idle" onClick={() => { setShowMatchModal(true); setSelectedProblem(null); }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
               </svg>
@@ -664,12 +665,12 @@ export default function Dashboard() {
             borderRadius: 12, padding: 30, width: "100%", maxWidth: 400,
             boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
           }}>
-            <h2 style={{ fontSize: 20, marginBottom: 8 }}>Select Match Type</h2>
+            <h2 style={{ fontSize: 20, marginBottom: 8 }}>{selectedProblem ? `Practice: ${selectedProblem.title}` : "Select Match Type"}</h2>
             <p style={{ color: "var(--muted2)", fontSize: 13, marginBottom: 24 }}>How would you like to play?</p>
             
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button 
-                onClick={() => { setShowMatchModal(false); handleFindMatch(); }}
+                onClick={() => { setShowMatchModal(false); handleFindMatch(selectedProblem?.id); setSelectedProblem(null); }}
                 style={{
                   background: "var(--indigo)", color: "#fff", border: "none",
                   padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
@@ -684,7 +685,12 @@ export default function Dashboard() {
               </button>
 
               <button 
-                onClick={() => { setShowMatchModal(false); router.push("/friends"); }}
+                onClick={() => { 
+                  setShowMatchModal(false); 
+                  const url = selectedProblem ? `/friends?problemId=${selectedProblem.id}` : "/friends";
+                  router.push(url); 
+                  setSelectedProblem(null);
+                }}
                 style={{
                   background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--border)",
                   padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
@@ -700,7 +706,7 @@ export default function Dashboard() {
             </div>
 
             <button 
-              onClick={() => setShowMatchModal(false)}
+              onClick={() => { setShowMatchModal(false); setSelectedProblem(null); }}
               style={{
                 width: "100%", background: "transparent", border: "none", color: "var(--muted2)",
                 marginTop: 20, cursor: "pointer", fontSize: 13, padding: 8
@@ -899,11 +905,10 @@ export default function Dashboard() {
                 <div className="prob-name">{p.title}</div>
                 <button 
                   className="prob-action" 
-                  onClick={() => handleFindMatch(p.id)}
-                  disabled={matchState === "queued"}
-                  style={{ background: "none", border: "none", cursor: matchState === "queued" ? "not-allowed" : "pointer", opacity: matchState === "queued" ? 0.5 : 1 }}
+                  onClick={() => { setSelectedProblem({ id: p.id, title: p.title }); setShowMatchModal(true); }}
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
-                  {matchState === "queued" ? "Queued..." : "Practice →"}
+                  Practice →
                 </button>
               </div>
             ))}

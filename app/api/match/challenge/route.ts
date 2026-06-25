@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PutCommand, QueryCommand, DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
-import { getRandomProblem } from "@/lib/problems";
+import { getRandomProblem, getProblemById } from "@/lib/problems";
 import { v4 as uuidv4 } from "uuid";
 
 // Send a challenge or Accept a challenge
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { action, targetId } = body;
+    const { action, targetId, problemId } = body;
 
     if (!action || !targetId) return NextResponse.json({ error: "Missing data" }, { status: 400 });
 
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
             challengerName: username,
             challengerAvatar: avatar,
             createdAt: now,
+            problemId: problemId || null,
             ttl: Math.floor(now / 1000) + 300, // 5 mins
           },
         })
@@ -47,15 +48,18 @@ export async function POST(req: Request) {
       const now = Date.now();
       const challengerId = targetId;
 
+      let deletedChallenge: any;
       // Delete the challenge (atomic check)
       try {
-        await dynamo.send(
+        const delRes = await dynamo.send(
           new DeleteCommand({
             TableName: TABLE,
             Key: { PK: `CHALLENGE#${userId}`, SK: `CHALLENGE#${challengerId}` },
             ConditionExpression: "attribute_exists(PK)",
+            ReturnValues: "ALL_OLD"
           })
         );
+        deletedChallenge = delRes.Attributes;
       } catch (e) {
         return NextResponse.json({ error: "Challenge expired or invalid" }, { status: 400 });
       }
@@ -72,7 +76,11 @@ export async function POST(req: Request) {
       );
 
       const matchId = uuidv4();
-      const problem = getRandomProblem();
+      
+      const requestedProblemId = deletedChallenge?.problemId;
+      const problem = requestedProblemId 
+        ? (getProblemById(requestedProblemId) || getRandomProblem())
+        : getRandomProblem();
 
       await dynamo.send(
         new PutCommand({

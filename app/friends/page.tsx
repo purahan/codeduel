@@ -141,10 +141,15 @@ export default function FriendsPage() {
   };
 
   const handleChallengeAction = async (action: "send" | "accept" | "decline", targetId: string) => {
+    let problemId = undefined;
+    if (action === "send" && typeof window !== "undefined") {
+      problemId = new URLSearchParams(window.location.search).get("problemId") || undefined;
+    }
+
     const res = await fetch("/api/match/challenge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, targetId })
+      body: JSON.stringify({ action, targetId, problemId })
     });
     const d = await res.json();
     if (action === "send" && res.ok) {
