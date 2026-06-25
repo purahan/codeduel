@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "wipe-db": "npx tsx scripts/wipe-db.ts",
+    "sync-users": "npx tsx scripts/sync-users.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1070.0",
