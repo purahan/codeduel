@@ -154,9 +154,38 @@ export default function MatchArena() {
   const myId = (session?.user as any)?.id as string | undefined;
 
   // ── Redirect if not authed ─────────────────────────────────────────────────
+  // ── Poll opponent status every 3s ──────────────────────────────────────────
   useEffect(() => {
-    if (authStatus === "unauthenticated") router.push("/");
-  }, [authStatus, router]);
+    // FIX: Check for "active" instead of just "finished" so it catches forfeits/timeouts
+    if (!match || match.status !== "active") return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/match/${matchId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setMatch(data.match);
+
+        // FIX: If the match is no longer active (someone won, time ran out, or someone forfeited)
+        if (data.match.status !== "active") {
+          
+          // Trigger a browser notification for Player B if Player A forfeited
+          if (data.match.status === "forfeited" && match?.status === "active") {
+            alert("The opponent has forfeited the match! You win by default.");
+          }
+
+          setMatchOver(true);
+          setWon(resolveWon(data.match, myId));
+          stopPolling();
+          if (timerRef.current) clearInterval(timerRef.current);
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+
+    return () => stopPolling();
+  }, [match?.status, matchId, myId, stopPolling]);
 
   // ── Fetch match (with retry for post-creation race condition) ───────────────
   const fetchMatch = useCallback(async () => {
@@ -263,7 +292,7 @@ export default function MatchArena() {
   }, []);
 
   useEffect(() => {
-    if (!match || match.status === "finished") return;
+    if (!match || match.status !== "active") return; // Changed to !== "active"
 
     pollRef.current = setInterval(async () => {
       try {
@@ -272,7 +301,13 @@ export default function MatchArena() {
         const data = await res.json();
         setMatch(data.match);
 
-        if (data.match.status === "finished") {
+        if (data.match.status !== "active") { // Changed to !== "active"
+          
+          // Show alert to Player B if Player A forfeited
+          if (data.match.status === "forfeited" && match?.status === "active") {
+            alert("The opponent has forfeited the match! You win by default.");
+          }
+
           setMatchOver(true);
           setWon(resolveWon(data.match, myId));
           stopPolling();
@@ -472,12 +507,21 @@ export default function MatchArena() {
       <div style={s.modalOverlay}>
         <div style={s.modal}>
           <div style={{ fontSize: 56, marginBottom: 16 }}>
-            {won === true ? "🏆" : won === false ? "💀" : "⏰"}
+            {match.status === "forfeited" ? "🏳️" : won === true ? "🏆" : won === false ? "💀" : "⏰"}
           </div>
-          <h2 style={{ ...s.modalTitle, color: won ? "#7cff6b" : "#f87171" }}>
-            {won === true ? "You Won!" : won === false ? "You Lost" : "Time's Up"}
+          
+          <h2 style={{ ...s.modalTitle, color: match.status === "forfeited" ? "#f87171" : won ? "#7cff6b" : "#f87171" }}>
+            {match.status === "forfeited" 
+              ? "Opponent Forfeited" 
+              : won === true ? "You Won!" : won === false ? "You Lost" : "Time's Up"
+            }
           </h2>
-          {match.winnerId && (
+
+          {match.status === "forfeited" ? (
+            <p style={{ color: "#f87171", fontSize: 13, marginBottom: 20 }}>
+              The other player abandoned the duel. You win by default!
+            </p>
+          ) : match.winnerId ? (
             <p style={s.modalSub}>
               {won
                 ? `You outran ${opponent.username}`
@@ -486,7 +530,7 @@ export default function MatchArena() {
                     : me.username} won this duel`
               }
             </p>
-          )}
+          ) : null}
           {submitResult?.testsPassed !== undefined && (
             <div style={s.modalStats}>
               <div style={s.modalStat}>
