@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
 import { calcElo } from "@/lib/elo";
+import sql from "@/lib/postgres";
 
 /**
  * Public HTTP POST Gateway for Match Forfeits / Rage-Quits.
@@ -146,6 +147,33 @@ export async function POST(req: Request) {
         ]
       })
     );
+
+    // 7 — SYNC MATCH RESULT TO AURORA POSTGRESQL
+    try {
+      const durationSeconds = Math.floor((now - match.startedAt) / 1000);
+      const winnerGhId = parseInt(winnerObj.userId);
+      const loserGhId = parseInt(loserObj.userId);
+      const problemId = match.problemId;
+
+      await sql`
+        INSERT INTO match_results (
+          match_id, problem_id, winner_id, loser_id,
+          winner_elo_before, winner_elo_after,
+          loser_elo_before, loser_elo_after,
+          duration_seconds, ended_by, played_at
+        ) VALUES (
+          ${matchId},
+          (SELECT id FROM problems WHERE slug = ${problemId}),
+          (SELECT id FROM users WHERE github_id = ${winnerGhId}),
+          (SELECT id FROM users WHERE github_id = ${loserGhId}),
+          ${winnerObj.elo}, ${newWinnerElo},
+          ${loserObj.elo}, ${newLoserElo},
+          ${durationSeconds}, 'forfeit', NOW()
+        )
+      `;
+    } catch (err) {
+      console.error("Failed to sync match_result to Postgres:", err);
+    }
 
     return NextResponse.json({
       status: "forfeited",

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamo, TABLE } from "@/lib/dynamo";
 import { calcElo } from "@/lib/elo";
+import sql from "@/lib/postgres";
 
 /**
  * Public HTTP POST Gateway for Match Lifecycle Timeouts.
@@ -138,6 +139,54 @@ export async function POST(req: Request) {
     // 6 — EXECUTE ATOMIC TRANSACTION WRITE
     if (transactItems.length > 0) {
       await dynamo.send(new TransactWriteCommand({ TransactItems: transactItems }));
+    }
+
+    // 7 — SYNC MATCH RESULT TO AURORA POSTGRESQL
+    try {
+      const durationSeconds = Math.floor((now - match.startedAt) / 1000);
+      const problemId = match.problemId;
+
+      if (isTie) {
+        await sql`
+          INSERT INTO match_results (
+            match_id, problem_id, winner_id, loser_id,
+            winner_elo_before, winner_elo_after,
+            loser_elo_before, loser_elo_after,
+            duration_seconds, ended_by, played_at
+          ) VALUES (
+            ${matchId},
+            (SELECT id FROM problems WHERE slug = ${problemId}),
+            NULL, NULL,
+            NULL, NULL,
+            NULL, NULL,
+            ${durationSeconds}, 'timeout', NOW()
+          )
+        `;
+      } else {
+        const winnerObj = p1.userId === winnerId ? p1 : p2;
+        const loserObj  = p1.userId === loserId ? p1 : p2;
+        const winnerGhId = parseInt(winnerObj.userId);
+        const loserGhId = parseInt(loserObj.userId);
+
+        await sql`
+          INSERT INTO match_results (
+            match_id, problem_id, winner_id, loser_id,
+            winner_elo_before, winner_elo_after,
+            loser_elo_before, loser_elo_after,
+            duration_seconds, ended_by, played_at
+          ) VALUES (
+            ${matchId},
+            (SELECT id FROM problems WHERE slug = ${problemId}),
+            (SELECT id FROM users WHERE github_id = ${winnerGhId}),
+            (SELECT id FROM users WHERE github_id = ${loserGhId}),
+            ${winnerObj.elo}, ${newWinnerElo},
+            ${loserObj.elo}, ${newLoserElo},
+            ${durationSeconds}, 'timeout', NOW()
+          )
+        `;
+      }
+    } catch (err) {
+      console.error("Failed to sync match_result to Postgres:", err);
     }
 
     return NextResponse.json({
