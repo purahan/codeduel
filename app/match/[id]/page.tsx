@@ -187,9 +187,12 @@ export default function MatchArena() {
         // FIX: If the match is no longer active (someone won, time ran out, or someone forfeited)
         if (data.match.status !== "active") {
 
-          // Trigger a browser notification for Player B if Player A forfeited
+          // Trigger a browser notification if opponent forfeited
           if (data.match.status === "forfeited" && match?.status === "active") {
-            alert("The opponent has forfeited the match! You win by default.");
+            const didWin = resolveWon(data.match, myId);
+            if (didWin) {
+              alert("The opponent has forfeited the match! You win by default.");
+            }
           }
 
           setFinalMatchPayload(data.match);
@@ -534,9 +537,15 @@ export default function MatchArena() {
       color = "#fbbf24";
       subtext = "Opponent left in the first 90 seconds. No ELO gained or lost.";
     } else if (modalMatch.status === "forfeited") {
-      title = "Opponent Forfeited 🏳️";
-      color = "#f87171";
-      subtext = "The other player abandoned the duel. You win by default!";
+      if (won) {
+        title = "Opponent Forfeited 🏳️";
+        color = "#7cff6b"; // Green
+        subtext = "The other player abandoned the duel. You win by default!";
+      } else {
+        title = "You Forfeited 🏳️";
+        color = "#f87171"; // Red
+        subtext = "You abandoned the duel. You lose by default.";
+      }
     } else if (modalMatch.endedBy === "timeout") {
       title = "Time's Up ⏰";
       color = "#f87171";
