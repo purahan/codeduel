@@ -36,6 +36,20 @@ export async function POST(req: Request) {
   );
   const myElo: number = userItem.Item?.elo ?? 1200;
 
+  // Check for active matchmaking ban 
+  const banUntil = userItem.Item?.queueBanUntil ?? 0;
+  if (Date.now() < banUntil) {
+    const secondsLeft = Math.ceil((banUntil - Date.now()) / 1000);
+    return NextResponse.json(
+      { 
+        error: "Queue Banned", 
+        message: `You abandoned a match early. You can queue again in ${secondsLeft} seconds.`,
+        secondsLeft 
+      }, 
+      { status: 403 }
+    );
+  }
+
   // 3 — Guard: already in a live (non-expired) match?
   const activeMatchScan = await dynamo.send(
     new ScanCommand({
