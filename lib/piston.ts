@@ -1,23 +1,30 @@
 // =============================================================================
 // SECURITY-HARDENED CODE EXECUTION MODULE
 // =============================================================================
+//
+// EXECUTION BACKEND:
+//   1. Public Piston (emkc.org) or Self-hosted Piston (if PISTON_URL is set)
+//
+// SECURITY NOTE:
+// All code execution happens REMOTELY in sandboxed containers.
+// We NEVER execute user code locally under ANY circumstances.
+// =============================================================================
 
-import { 
-  generatePythonWrapper, 
-  generateJavascriptWrapper,
-  generateCppWrapper,
-  generateJavaWrapper
-} from "./wrappers";
+import { generatePythonWrapper, generateJavascriptWrapper, generateCppWrapper, generateJavaWrapper } from "./wrappers";
 import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES } from "./languages";
+
+// ── Backend Configuration ────────────────────────────────────────────────────
 
 const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston";
 
 // Timeout for API requests
-const API_TIMEOUT_MS = 12_000;
+const PISTON_TIMEOUT_MS = 10_000;
 
-// Maximum code size to send (100KB)
+// Maximum code size to send (100KB) — prevents abuse
 const MAX_CODE_SIZE_BYTES = 100_000;
 
+// NOTE: Supported languages and their Piston configs are defined in lib/languages.ts
+// (single source of truth). Do NOT add language entries here.
 export type ExecutionResult = {
   passed:    boolean;
   status:    string;
@@ -27,62 +34,13 @@ export type ExecutionResult = {
   stdout:    string | null;
 };
 
-// ── Piston Backend ────────────────────────────────────────────────
-
-async function runViaPiston(
-  code: string,
-  language: string,
-  version: string,
-  stdin: string
-): Promise<{ stdout: string; stderr: string; time: number | null } | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
-    const response = await fetch(`${PISTON_URL}/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        language,
-        version,
-        files: [{ content: code }],
-        stdin,
-        compile_timeout: 10000,
-        run_timeout: 3000,
-        compile_memory_limit: -1,
-        run_memory_limit: -1,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.error(`[piston] HTTP ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (data.message && data.message.includes("whitelist")) {
-      console.error(`[piston] Public API rejected: ${data.message}`);
-      return null;
-    }
-
-    return {
-      stdout: data.run?.stdout ?? "",
-      stderr: data.compile?.stderr || data.run?.stderr || "",
-      time: null,
-    };
-  } catch (err: any) {
-    const isAbort = err.name === "AbortError";
-    console.error(`[piston] ${isAbort ? "Timed out" : "Error"}: ${err.message}`);
-    return null;
-  }
-}
-
 // ── Unified Single-Test Runner ───────────────────────────────────────────────
 
+/**
+ * Execute a single test case against user code using the REMOTE Piston API.
+ *
+ * SECURITY: This function NEVER executes user code locally.
+ */
 async function runSingle(
   code: string,
   language: string,
@@ -90,11 +48,13 @@ async function runSingle(
   expectedOutput: string,
   problemId: string
 ): Promise<ExecutionResult> {
+  // ── Input validation ──────────────────────────────────────────────────────
+
   if (!isSupportedLanguage(language)) {
     return {
       passed: false, status: "unsupported_language",
       runtimeMs: null, memoryKb: null,
-      stderr: `Language "${language}" is not supported. Supported: ${SUPPORTED_LANGUAGES.join(", ")}.`,
+      stderr: `Language "${language}" is not supported. Supported: ${SUPPORTED_LANGUAGES.join(", ")}. More languages coming soon!`,
       stdout: null,
     };
   }
@@ -110,6 +70,8 @@ async function runSingle(
 
   const lang = LANGUAGE_CONFIG[language];
 
+  // ── Build wrapped code ────────────────────────────────────────────────────
+
   let finalCode = code;
   if (language === "python") {
     finalCode = generatePythonWrapper(code, problemId);
@@ -121,32 +83,94 @@ async function runSingle(
     finalCode = generateJavaWrapper(code, problemId);
   }
 
-  const start = Date.now();
-  const result = await runViaPiston(finalCode, lang.language, lang.version, input);
+  // ── Execute via backend (Piston) ──────────────────────────────────────────
 
-  if (!result) {
+  const start = Date.now();
+  let run: { stdout: string; stderr: string };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PISTON_TIMEOUT_MS);
+
+    const response = await fetch(`${PISTON_URL}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language: lang.language,
+        version:  lang.version,
+        files:    [{ content: finalCode }],
+        stdin:    input,
+        compile_timeout: 10000,
+        run_timeout:     3000,
+        compile_memory_limit: -1,
+        run_memory_limit:     -1,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`[piston] Remote execution service returned HTTP ${response.status}`);
+      return {
+        passed: false,
+        status: "execution_service_unavailable",
+        runtimeMs: null,
+        memoryKb: null,
+        stderr: "Code execution service is temporarily unavailable. Please try again in a few moments.",
+        stdout: null,
+      };
+    }
+
+    const data = await response.json();
+
+    // Check for whitelist rejection (if public API blocked the Vercel IP)
+    if (data.message && data.message.includes("whitelist")) {
+      console.error(`[piston] Public API rejected: ${data.message}`);
+      return {
+        passed: false,
+        status: "execution_service_unavailable",
+        runtimeMs: null,
+        memoryKb: null,
+        stderr: "The public code execution API has temporarily blocked this application. Please try again later or self-host the API.",
+        stdout: null,
+      };
+    }
+
+    // Piston returns { run: { stdout, stderr, code, signal, output } }
+    run = {
+      stdout: data.run?.stdout ?? "",
+      stderr: data.run?.stderr ?? "",
+    };
+  } catch (err: any) {
+    const isAbort = err.name === "AbortError";
+    console.error(`[piston] ${isAbort ? "Request timed out" : "Network error"}: ${err.message}`);
     return {
       passed: false,
       status: "execution_service_unavailable",
       runtimeMs: null,
       memoryKb: null,
-      stderr: "Code execution service is temporarily unavailable.",
+      stderr: isAbort
+        ? "Code execution timed out. The execution service may be under heavy load."
+        : "Code execution service is temporarily unavailable. Please try again in a few moments.",
       stdout: null,
     };
   }
 
-  const runtimeMs = result.time ?? (Date.now() - start);
+  const runtimeMs = Date.now() - start;
 
-  const actualOutput = (result.stdout ?? "").trim();
+  // ── Compare output ────────────────────────────────────────────────────────
+
+  const actualOutput = (run.stdout ?? "").trim();
   const expected     = expectedOutput.trim();
   const passed       = actualOutput === expected;
 
-  if (result.stderr && !passed) {
-    console.error("EXECUTION ERROR:", result.stderr);
+  if (run.stderr && !passed) {
+    console.error("PISTON ERROR:", run.stderr);
     return {
       passed: false, status: "runtime_error",
       runtimeMs, memoryKb: null,
-      stderr: result.stderr, stdout: result.stdout,
+      stderr: run.stderr, stdout: run.stdout,
     };
   }
 
@@ -162,8 +186,8 @@ async function runSingle(
     status:    passed ? "accepted" : "wrong_answer",
     runtimeMs,
     memoryKb:  null,
-    stderr:    result.stderr ?? null,
-    stdout:    result.stdout ?? null,
+    stderr:    run.stderr ?? null,
+    stdout:    run.stdout ?? null,
   };
 }
 
@@ -190,6 +214,7 @@ export async function runAllTestCases(
   for (const tc of testCases) {
     const result = await runSingle(code, language, tc.input, tc.expectedOutput, problemId);
 
+    // If the execution service is unavailable, fail fast — don't keep retrying
     if (result.status === "execution_service_unavailable") {
       firstFailure = result;
       break;
