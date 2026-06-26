@@ -125,8 +125,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "cancelled", bannedUntil, match: finalizedMatch }, { status: 200 });
     }
 
-    const liveWinnerElo = winnerRes.Item?.elo ?? winnerObj.elo;
-    const liveLoserElo  = loserRes.Item?.elo ?? loserObj.elo;
+    const liveWinnerElo = winnerRes.Item?.elo ?? 1200;
+    const liveLoserElo  = loserRes.Item?.elo ?? 1200;
 
     const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
     const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
@@ -158,12 +158,12 @@ export async function POST(req: Request) {
             Update: {
               TableName: TABLE,
               Key: { PK: `USER#${winnerId}`, SK: "PROFILE" },
-              UpdateExpression: "SET elo = :elo ADD wins :one",
-              ConditionExpression: "elo = :liveElo",
+              UpdateExpression: "SET elo = :newElo ADD wins :one",
+              ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
               ExpressionAttributeValues: {
-                ":elo":     newWinnerElo,
+                ":newElo": newWinnerElo,
                 ":liveElo": liveWinnerElo,
-                ":one":     1
+                ":one": 1
               }
             }
           },
@@ -188,12 +188,12 @@ export async function POST(req: Request) {
             Update: {
               TableName: TABLE,
               Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
-              UpdateExpression: "SET elo = :elo ADD losses :one",
-              ConditionExpression: "elo = :liveElo",
+              UpdateExpression: "SET elo = :newElo ADD losses :one",
+              ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
               ExpressionAttributeValues: {
-                ":elo":     newLoserElo,
+                ":newElo": newLoserElo,
                 ":liveElo": liveLoserElo,
-                ":one":     1
+                ":one": 1
               }
             }
           },

@@ -310,9 +310,29 @@ export default function MatchArena() {
 
       if (left === 0) {
         if (timerRef.current) clearInterval(timerRef.current);
-        setFinalMatchPayload({ ...match, status: "timed_out", endedBy: "timeout" } as Match);
-        setMatchOver(true);
-        setWon(null); // timeout = time's up (not the same as losing a match)
+        
+        const handleTimeout = async () => {
+          try {
+            const res = await fetch("/api/match/timeout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ matchId }),
+            });
+            if (!res.ok) {
+              fetchMatch();
+              return;
+            }
+            setFinalMatchPayload({ ...match, status: "timed_out", endedBy: "timeout" } as Match);
+            setMatchOver(true);
+            setWon(null);
+            stopPolling();
+            fetchMatch();
+          } catch (e) {
+            fetchMatch();
+          }
+        };
+        
+        handleTimeout();
       }
     };
 
@@ -340,6 +360,12 @@ export default function MatchArena() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchId, code, language }),
       });
+      
+      if (!res.ok) {
+        fetchMatch();
+        return;
+      }
+      
       const data: SubmitResult = await res.json();
       setSubmitResult(data);
 
@@ -352,10 +378,7 @@ export default function MatchArena() {
         fetchMatch();
       }
     } catch {
-      setSubmitResult({
-        result: "error", testsPassed: 0, testsTotal: 0,
-        matchOver: false, won: false, error: "Network error",
-      });
+      fetchMatch();
     } finally {
       setSubmitting(false);
     }
@@ -388,12 +411,11 @@ export default function MatchArena() {
         // This guarantees the UI instantly unmounts and grabs fresh database info
         window.location.href = "/dashboard";
       } else {
-        const data = await res.json();
-        alert(`Failed to forfeit: ${data.message || data.error}`);
+        fetchMatch();
         setExiting(false);
       }
     } catch (e) {
-      alert("Network error occurred.");
+      fetchMatch();
       setExiting(false);
     }
   };

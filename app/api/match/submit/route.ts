@@ -156,8 +156,16 @@ export async function POST(req: Request) {
       const winner = match[myRole];
       const loser  = match[opponentRole];
 
-      const newWinnerElo = calcElo(winner.elo, loser.elo, true);
-      const newLoserElo  = calcElo(loser.elo, winner.elo, false);
+      const [winnerProfileResult, loserProfileResult] = await Promise.all([
+        dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${winner.userId}`, SK: "PROFILE" } })),
+        dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loser.userId}`, SK: "PROFILE" } }))
+      ]);
+
+      const liveWinnerElo = winnerProfileResult.Item?.elo ?? 1200;
+      const liveLoserElo = loserProfileResult.Item?.elo ?? 1200;
+
+      const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
+      const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
 
       // Secure atomic multi-item cloud transaction with concurrency verification expressions
       await dynamo.send(
@@ -169,10 +177,10 @@ export async function POST(req: Request) {
                 TableName: TABLE,
                 Key: { PK: `MATCH#${matchId}`, SK: "META" },
                 UpdateExpression:
-                  "SET #s = :finished, winnerId = :wid, finishedAt = :now, endedBy = :by",
+                  "SET #s = :status, winnerId = :wid, finishedAt = :now, endedBy = :by",
                 ExpressionAttributeNames: { "#s": "status" },
                 ExpressionAttributeValues: {
-                  ":finished": "finished",
+                  ":status": "finished",
                   ":wid":      userId,
                   ":now":      now,
                   ":by":       "submission",
@@ -185,14 +193,14 @@ export async function POST(req: Request) {
               Update: {
                 TableName: TABLE,
                 Key: { PK: `USER#${winner.userId}`, SK: "PROFILE" },
-                UpdateExpression: "SET elo = :elo ADD wins :one",
-                ConditionExpression: "elo = :oldElo",
+                UpdateExpression: "SET elo = :newElo ADD wins :one",
+                ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
                 ExpressionAttributeValues: {
-                  ":elo": newWinnerElo,
-                  ":oldElo": winner.elo,
-                  ":one": 1,
-                },
-              },
+                  ":newElo": newWinnerElo,
+                  ":liveElo": liveWinnerElo,
+                  ":one": 1
+                }
+              }
             },
 
             // Winner leaderboard entry
@@ -215,14 +223,14 @@ export async function POST(req: Request) {
               Update: {
                 TableName: TABLE,
                 Key: { PK: `USER#${loser.userId}`, SK: "PROFILE" },
-                UpdateExpression: "SET elo = :elo ADD losses :one",
-                ConditionExpression: "elo = :oldElo",
+                UpdateExpression: "SET elo = :newElo ADD losses :one",
+                ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
                 ExpressionAttributeValues: {
-                  ":elo": newLoserElo,
-                  ":oldElo": loser.elo,
-                  ":one": 1,
-                },
-              },
+                  ":newElo": newLoserElo,
+                  ":liveElo": liveLoserElo,
+                  ":one": 1
+                }
+              }
             },
 
             // Loser leaderboard entry

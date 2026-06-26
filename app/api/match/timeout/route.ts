@@ -88,17 +88,25 @@ export async function POST(req: Request) {
       const winnerObj = p1.userId === winnerId ? p1 : p2;
       const loserObj  = p1.userId === loserId ? p1 : p2;
 
-      newWinnerElo = calcElo(winnerObj.elo, loserObj.elo, true);
-      newLoserElo  = calcElo(loserObj.elo, winnerObj.elo, false);
+      const [winnerRes, loserRes] = await Promise.all([
+        dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${winnerId}`, SK: "PROFILE" } })),
+        dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
+      ]);
+
+      const liveWinnerElo = winnerRes.Item?.elo ?? 1200;
+      const liveLoserElo  = loserRes.Item?.elo ?? 1200;
+
+      newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
+      newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
 
       // Append Winner Profile Update (with Optimistic Lock Guard)
       transactItems.push({
         Update: {
           TableName: TABLE,
           Key: { PK: `USER#${winnerId}`, SK: "PROFILE" },
-          UpdateExpression: "SET elo = :elo ADD wins :one",
-          ConditionExpression: "elo = :oldElo",
-          ExpressionAttributeValues: { ":elo": newWinnerElo, ":oldElo": winnerObj.elo, ":one": 1 }
+          UpdateExpression: "SET elo = :newElo ADD wins :one",
+          ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
+          ExpressionAttributeValues: { ":newElo": newWinnerElo, ":liveElo": liveWinnerElo, ":one": 1 }
         }
       });
 
@@ -118,9 +126,9 @@ export async function POST(req: Request) {
         Update: {
           TableName: TABLE,
           Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
-          UpdateExpression: "SET elo = :elo ADD losses :one",
-          ConditionExpression: "elo = :oldElo",
-          ExpressionAttributeValues: { ":elo": newLoserElo, ":oldElo": loserObj.elo, ":one": 1 }
+          UpdateExpression: "SET elo = :newElo ADD losses :one",
+          ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
+          ExpressionAttributeValues: { ":newElo": newLoserElo, ":liveElo": liveLoserElo, ":one": 1 }
         }
       });
 
