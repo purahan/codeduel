@@ -428,8 +428,6 @@ try {
 
   return prefix + "\n" + code + "\n" + suffix;
 }
-<<<<<<< HEAD
-=======
 
 export function generateCppWrapper(code: string, problemId: string): string {
   let prefix = `
