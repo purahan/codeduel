@@ -37,6 +37,7 @@ export interface PlayerSlot {
   hintsUsed: number;
   submitted: boolean;
   passed: boolean;
+  testsPassed: number;
 }
 
 export interface UserProfile {

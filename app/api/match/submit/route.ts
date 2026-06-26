@@ -145,10 +145,11 @@ export async function POST(req: Request) {
       new UpdateCommand({
         TableName: TABLE,
         Key: { PK: `MATCH#${matchId}`, SK: "META" },
-        UpdateExpression: `SET ${myRole}.submitted = :t, ${myRole}.passed = :passed`,
+        UpdateExpression: `SET ${myRole}.submitted = :t, ${myRole}.passed = :passed, ${myRole}.testsPassed = :tp`,
         ExpressionAttributeValues: {
           ":t":      true,
           ":passed": execution.allPassed,
+          ":tp":     execution.passed,
         },
       })
     );
