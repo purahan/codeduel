@@ -19,6 +19,24 @@ interface ProfileData {
   activityMap: Record<string, number>;
 }
 
+// ─── Custom chart tooltip ─────────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div style={{
+      background: "#0d0d14", border: "1px solid rgba(139,142,255,0.2)",
+      borderRadius: 6, padding: "8px 12px",
+      fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "#e8e6f0",
+      zIndex: 1000,
+      position: "relative",
+    }}>
+      <div style={{ color: "#8b8eff", fontWeight: "bold" }}>{payload[0].value} ELO</div>
+      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, marginTop: 2 }}>{payload[0].payload?.label || label || ""}</div>
+    </div>
+  );
+}
+
 // ── Activity Calendar ───────────────────────────────────────────────────────
 function ActivityCalendar({ data }: { data: Record<string, number> }) {
   const weeks = useMemo(() => {
@@ -91,7 +109,7 @@ function eloRank(elo: number) {
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { matchState, setShowMatchModal, handleCancel } = useMatchmaking();
+  const { matchState, showMatchModal, setShowMatchModal, handleCancel, handleFindMatch } = useMatchmaking();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +140,7 @@ export default function ProfilePage() {
 
   const eloChartData = profile.eloHistory.length >= 2
     ? profile.eloHistory
-    : [{ label: "Start", elo: 1200 }, { label: "Now", elo: profile.elo }];
+    : [{ label: "Start", fullDate: "Start", elo: 1200 }, { label: "Now", fullDate: "Now", elo: profile.elo }];
 
   const S: Record<string, React.CSSProperties> = {
     page:      { minHeight: "100vh", background: "#0b0c0e", color: "#f5f3ec", fontFamily: "'JetBrains Mono', monospace" },
@@ -177,6 +195,69 @@ export default function ProfilePage() {
             </div>
           </div>
         </nav>
+
+        {/* MATCH MODAL */}
+        {showMatchModal && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100
+          }}>
+            <div style={{
+              background: "#111317", border: "1px solid #2a2c30",
+              borderRadius: 12, padding: 30, width: "100%", maxWidth: 400,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
+            }}>
+              <h2 style={{ fontSize: 20, marginBottom: 8, color: "#f5f3ec" }}>Select Match Type</h2>
+              <p style={{ color: "#8a8c82", fontSize: 13, marginBottom: 24 }}>How would you like to play?</p>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <button 
+                  onClick={() => { setShowMatchModal(false); handleFindMatch(); }}
+                  style={{
+                    background: "#7c3aed", color: "#fff", border: "none",
+                    padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                    transition: "opacity 0.2s"
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.opacity = "0.9")}
+                  onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>⚡</div>
+                  Play Random Opponent
+                </button>
+
+                <button 
+                  onClick={() => { 
+                    setShowMatchModal(false); 
+                    router.push("/friends"); 
+                  }}
+                  style={{
+                    background: "rgba(255,255,255,0.05)", color: "#f5f3ec", border: "1px solid #2a2c30",
+                    padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                    transition: "background 0.2s"
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+                  onMouseOut={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                >
+                  <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>👥</div>
+                  Challenge a Friend
+                </button>
+              </div>
+
+              <button 
+                onClick={() => { setShowMatchModal(false); }}
+                style={{
+                  width: "100%", background: "transparent", border: "none", color: "#8a8c82",
+                  marginTop: 20, cursor: "pointer", fontSize: 13, padding: 8
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <main style={S.main}>
           {/* PROFILE HEADER */}
@@ -244,9 +325,9 @@ export default function ProfilePage() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e2025" vertical={false} />
-                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#4a4860", fontSize: 10, fontFamily: "JetBrains Mono" }} />
+                      <XAxis dataKey="fullDate" tickFormatter={(val) => val ? val.split(',')[0] : ""} axisLine={false} tickLine={false} tick={{ fill: "#4a4860", fontSize: 10, fontFamily: "JetBrains Mono" }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fill: "#4a4860", fontSize: 10, fontFamily: "JetBrains Mono" }} domain={["dataMin - 100", "dataMax + 100"]} />
-                      <Tooltip contentStyle={{ background: "#111317", border: "1px solid #2a2c30", borderRadius: 8, fontSize: 12, fontFamily: "JetBrains Mono" }} labelStyle={{ color: "#8a8c82" }} itemStyle={{ color: "#f5f3ec" }} cursor={{ stroke: "#7c3aed", strokeWidth: 1, strokeDasharray: "4 4" }} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#7c3aed", strokeWidth: 1, strokeDasharray: "4 4" }} />
                       <Area type="monotone" dataKey="elo" stroke="#8b8eff" strokeWidth={2} fill="url(#eloGrad)" dot={false} activeDot={{ r: 4, fill: "#8b8eff", stroke: "#0b0c0e", strokeWidth: 2 }} />
                     </AreaChart>
                   </ResponsiveContainer>

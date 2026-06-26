@@ -118,10 +118,14 @@ export async function GET() {
       totalMatches: wins + losses,
       winRate:      wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0,
       joinedAt:     pgUser?.created_at ?? null,
-      eloHistory:   eloHistory.map((r: any) => ({
-        label: new Date(r.played_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        elo:   r.elo,
-      })),
+      eloHistory:   eloHistory.map((r: any, i: number) => {
+        const d = new Date(r.played_at);
+        return {
+          label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          fullDate: d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) + `-${i}`,
+          elo:   r.elo,
+        };
+      }),
       recentMatches: mappedMatches,
       activityMap,
     });
