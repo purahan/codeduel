@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "wipe-db": "npx tsx scripts/wipe-db.ts",
     "sync-users": "npx tsx scripts/sync-users.ts"
   },

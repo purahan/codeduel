@@ -3,7 +3,7 @@
 // =============================================================================
 //
 // EXECUTION BACKEND:
-//   1. Public Piston (emkc.org) or Self-hosted Piston (if PISTON_URL is set)
+//   Self-hosted Piston server (configured via PISTON_URL env var)
 //
 // SECURITY NOTE:
 // All code execution happens REMOTELY in sandboxed containers.
@@ -15,13 +15,87 @@ import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES } from "./lan
 
 // ── Backend Configuration ────────────────────────────────────────────────────
 
-const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston";
+const PISTON_URL = process.env.PISTON_URL;
 
-// Timeout for API requests
-const PISTON_TIMEOUT_MS = 10_000;
+if (!PISTON_URL) {
+  throw new Error(
+    "PISTON_URL environment variable is required. " +
+    "Set it to your Piston API base URL (e.g., http://your-server/api/v2)."
+  );
+}
+
+// Timeout for API requests (15 seconds — allows for EC2 cold-start latency)
+const PISTON_TIMEOUT_MS = 15_000;
 
 // Maximum code size to send (100KB) — prevents abuse
 const MAX_CODE_SIZE_BYTES = 100_000;
+
+// ── Shared Headers ───────────────────────────────────────────────────────────
+
+function buildHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (process.env.PISTON_KEY) {
+    headers["X-Piston-Key"] = process.env.PISTON_KEY;
+  }
+  return headers;
+}
+
+// ── Runtime Listing (cached) ─────────────────────────────────────────────────
+
+export interface PistonRuntime {
+  language: string;
+  version:  string;
+  aliases:  string[];
+  runtime?: string;
+}
+
+let runtimesCache: PistonRuntime[] | null = null;
+let runtimesCacheExpiry = 0;
+const RUNTIMES_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch the list of available runtimes from the Piston server.
+ * Results are cached in memory for 5 minutes to reduce unnecessary requests.
+ * Returns stale cache if the server is temporarily unreachable.
+ */
+export async function getRuntimes(): Promise<PistonRuntime[]> {
+  if (runtimesCache && Date.now() < runtimesCacheExpiry) {
+    return runtimesCache;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PISTON_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${PISTON_URL}/runtimes`, {
+      headers: buildHeaders(),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`Piston runtimes endpoint returned HTTP ${response.status}`);
+    }
+
+    const data: PistonRuntime[] = await response.json();
+    runtimesCache = data;
+    runtimesCacheExpiry = Date.now() + RUNTIMES_CACHE_TTL_MS;
+    return data;
+  } catch (err: any) {
+    clearTimeout(timeout);
+
+    // Return stale cache if available rather than failing completely
+    if (runtimesCache) {
+      console.warn(`[piston] Failed to refresh runtimes, returning stale cache: ${err.message}`);
+      return runtimesCache;
+    }
+
+    throw err;
+  }
+}
+
+// ── Execution Types ──────────────────────────────────────────────────────────
 
 // NOTE: Supported languages and their Piston configs are defined in lib/languages.ts
 // (single source of truth). Do NOT add language entries here.
@@ -83,7 +157,7 @@ async function runSingle(
     finalCode = generateJavaWrapper(code, problemId);
   }
 
-  // ── Execute via backend (Piston) ──────────────────────────────────────────
+  // ── Execute via Piston ────────────────────────────────────────────────────
 
   const start = Date.now();
   let run: { stdout: string; stderr: string };
@@ -94,7 +168,7 @@ async function runSingle(
 
     const response = await fetch(`${PISTON_URL}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildHeaders(),
       body: JSON.stringify({
         language: lang.language,
         version:  lang.version,
@@ -111,7 +185,21 @@ async function runSingle(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.error(`[piston] Remote execution service returned HTTP ${response.status}`);
+      const statusCode = response.status;
+      console.error(`[piston] Remote execution service returned HTTP ${statusCode}`);
+
+      // Differentiate between client errors and server errors
+      if (statusCode === 400) {
+        return {
+          passed: false,
+          status: "invalid_request",
+          runtimeMs: null,
+          memoryKb: null,
+          stderr: "Invalid execution request. The selected language or version may not be available on the server.",
+          stdout: null,
+        };
+      }
+
       return {
         passed: false,
         status: "execution_service_unavailable",
@@ -123,19 +211,6 @@ async function runSingle(
     }
 
     const data = await response.json();
-
-    // Check for whitelist rejection (if public API blocked the Vercel IP)
-    if (data.message && data.message.includes("whitelist")) {
-      console.error(`[piston] Public API rejected: ${data.message}`);
-      return {
-        passed: false,
-        status: "execution_service_unavailable",
-        runtimeMs: null,
-        memoryKb: null,
-        stderr: "The public code execution API has temporarily blocked this application. Please try again later or self-host the API.",
-        stdout: null,
-      };
-    }
 
     // Piston returns { run: { stdout, stderr, code, signal, output } }
     run = {
