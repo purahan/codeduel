@@ -108,7 +108,14 @@ export async function POST(req: Request) {
         })
       );
 
-      return NextResponse.json({ status: "cancelled", bannedUntil }, { status: 200 });
+      const finalizedMatch = {
+        ...match,
+        status: "cancelled",
+        finishedAt: forfeitTime,
+        endedBy: "early_forfeit"
+      };
+
+      return NextResponse.json({ status: "cancelled", bannedUntil, match: finalizedMatch }, { status: 200 });
     }
 
     const liveWinnerElo = winnerRes.Item?.elo ?? winnerObj.elo;
@@ -229,10 +236,21 @@ export async function POST(req: Request) {
       console.error("Failed to sync match_result to Postgres:", err);
     }
 
+    const finalizedMatch = {
+      ...match,
+      status: "forfeited",
+      winnerId: winnerId,
+      finishedAt: now,
+      endedBy: "forfeit",
+      player1: { ...match.player1, elo: isPlayer1 ? newLoserElo : newWinnerElo },
+      player2: { ...match.player2, elo: isPlayer1 ? newWinnerElo : newLoserElo }
+    };
+
     return NextResponse.json({
       status: "forfeited",
       leaverId: loserId,
       winnerId: winnerId,
+      match: finalizedMatch,
       data: {
         winner: { id: winnerId, newElo: newWinnerElo },
         loser:  { id: loserId, newElo: newLoserElo }
