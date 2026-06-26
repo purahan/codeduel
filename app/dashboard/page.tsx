@@ -233,16 +233,18 @@ const DIFF_COLORS: Record<string, string> = {
 
 // ─── Custom chart tooltip ─────────────────────────────────────────────────────
 
-function ChartTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null;
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
   return (
     <div style={{
       background: "#0d0d14", border: "1px solid rgba(139,142,255,0.2)",
       borderRadius: 6, padding: "8px 12px",
       fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "#e8e6f0",
+      zIndex: 1000,
+      position: "relative",
     }}>
-      <div style={{ color: "#8b8eff" }}>{payload[0].value} ELO</div>
-      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, marginTop: 2 }}>{payload[0].payload.label}</div>
+      <div style={{ color: "#8b8eff", fontWeight: "bold" }}>{payload[0].value} ELO</div>
+      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, marginTop: 2 }}>{payload[0].payload?.label || label || ""}</div>
     </div>
   );
 }

@@ -179,7 +179,7 @@ export async function GET(
               ${matchId}, (SELECT id FROM problems WHERE slug = ${match.problemId}),
               (SELECT id FROM users WHERE github_id = ${winnerGhId}),
               (SELECT id FROM users WHERE github_id = ${loserGhId}),
-              ${match[myRole].elo}, ${newWinnerElo}, ${opponent.elo}, ${newLoserElo},
+              ${liveWinnerElo}, ${newWinnerElo}, ${liveLoserElo}, ${newLoserElo},
               ${durationSeconds}, 'timeout_disconnect', NOW()
             )
           `;
