@@ -136,7 +136,13 @@ export default function MatchArena() {
   // QA / Dev Toggle
   const [devBypass, setDevBypass] = useState(false);
   const myUsername = match && myRole ? match[myRole as "player1" | "player2"].username : "";
-  const isDev = myUsername === "Rishabh9877";
+  const u = (session?.user as any);
+  const isDev =
+    myUsername === "Rishabh9877" ||
+    u?.name === "Rishabh9877" ||
+    u?.login === "Rishabh9877" ||
+    u?.preferred_username === "Rishabh9877" ||
+    (u?.email && u.email.includes("rishabh"));
 
   // Hint state
   const [hintLoading, setHintLoading] = useState(false);
@@ -301,7 +307,7 @@ export default function MatchArena() {
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!match || match.status === "finished") return;
+    if (!match || match.status !== "active") return;
 
     const tick = () => {
       const elapsed = Date.now() - match.startedAt;
@@ -361,13 +367,25 @@ export default function MatchArena() {
         body: JSON.stringify({ matchId, code, language }),
       });
       
+      const data = await res.json();
+
       if (!res.ok) {
+        // Backend returned a structured SubmitResult-shaped error (409/500)
+        if (data.result) {
+          setSubmitResult(data as SubmitResult);
+        } else {
+          setSubmitResult({
+            result: "error", testsPassed: 0, testsTotal: 0,
+            matchOver: false, won: false,
+            error: data.message || data.error || "Submission failed. Please try again.",
+          });
+        }
+        // Also refresh match state in case it changed server-side
         fetchMatch();
         return;
       }
       
-      const data: SubmitResult = await res.json();
-      setSubmitResult(data);
+      setSubmitResult(data as SubmitResult);
 
       if (data.matchOver) {
         setMatchOver(true);
@@ -378,7 +396,11 @@ export default function MatchArena() {
         fetchMatch();
       }
     } catch {
-      fetchMatch();
+      setSubmitResult({
+        result: "error", testsPassed: 0, testsTotal: 0,
+        matchOver: false, won: false,
+        error: "Network error — check your connection and try again.",
+      });
     } finally {
       setSubmitting(false);
     }

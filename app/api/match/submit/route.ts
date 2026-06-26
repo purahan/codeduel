@@ -17,8 +17,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as any).id as string;
+    const userId = ((session.user as any).id || (session.user as any).sub) as string;
     const { matchId, code, language } = await req.json();
+
+    console.log(`[SUBMIT Step 1] Payload received — matchId=${matchId}, language=${language}, userId=${userId}, codeLen=${code?.length ?? 0}`);
 
     if (!matchId || !code || !language) {
       return NextResponse.json({ error: "matchId, code and language are required" }, { status: 400 });
@@ -90,6 +92,8 @@ export async function POST(req: Request) {
         { status: 503 }
       );
     }
+
+    console.log(`[SUBMIT Step 3] Test cases evaluated — allPassed=${execution.allPassed}, passed=${execution.passed}/${execution.total}, runtimeMs=${execution.runtimeMs}, failStatus=${execution.firstFailure?.status ?? 'none'}`);
 
     const myRole = isPlayer1 ? "player1" : "player2";
     const opponentRole = isPlayer1 ? "player2" : "player1";
@@ -166,6 +170,8 @@ export async function POST(req: Request) {
 
       const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
       const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
+
+      console.log(`[SUBMIT Step 4] DynamoDB transaction compiled — winnerId=${winner.userId}, loserId=${loser.userId}, liveWinnerElo=${liveWinnerElo}→${newWinnerElo}, liveLoserElo=${liveLoserElo}→${newLoserElo}`);
 
       // Secure atomic multi-item cloud transaction with concurrency verification expressions
       await dynamo.send(
@@ -284,7 +290,7 @@ export async function POST(req: Request) {
         runtimeMs:    execution.runtimeMs,
         matchOver:    true,
         won:          true,
-        eloChange:    newWinnerElo - winner.elo,
+        eloChange:    newWinnerElo - liveWinnerElo,
         newElo:       newWinnerElo,
       });
     }
@@ -306,15 +312,28 @@ export async function POST(req: Request) {
     if (error.name === "TransactionCanceledException" && error.message.includes("ConditionalCheckFailed")) {
       return NextResponse.json(
         { 
-          error: "CONCURRENCY_CONFLICT", 
-          message: "Transaction safely aborted. Player profile metrics drifted mid-flight during evaluation. Please re-submit." 
+          result:      "error",
+          testsPassed: 0,
+          testsTotal:  0,
+          matchOver:   false,
+          won:         false,
+          error:       "ELO desync detected. Your code was evaluated but the match state drifted. Please re-submit.",
+          message:     "CONCURRENCY_CONFLICT"
         }, 
         { status: 409 }
       );
     }
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR", message: "An unexpected system execution fault occurred." },
+      {
+        result:      "error",
+        testsPassed: 0,
+        testsTotal:  0,
+        matchOver:   false,
+        won:         false,
+        error:       error.message ?? "An unexpected system execution fault occurred.",
+        message:     "INTERNAL_SERVER_ERROR"
+      },
       { status: 500 }
     );
   }
