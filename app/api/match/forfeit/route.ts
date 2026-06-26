@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     const currentUserId = (session.user as any).id as string;
-    const { matchId } = await req.json();
+    const { matchId, devBypass } = await req.json();
 
     if (!matchId) {
       return NextResponse.json({ error: "matchId is required" }, { status: 400 });
@@ -70,6 +70,7 @@ export async function POST(req: Request) {
     const elapsedSeconds = (forfeitTime - match.startedAt) / 1000;
 
     if (elapsedSeconds <= 90) {
+      const isDevBypass = loserObj.username === "Rishabh9877" && devBypass === true;
       const currentLeaves = loserRes.Item?.earlyLeaveCount ?? 0;
       const newLeaveCount = currentLeaves + 1;
       
@@ -77,34 +78,40 @@ export async function POST(req: Request) {
       const banMinutes = Math.min(120, 3 + (newLeaveCount - 1) * 2);
       const bannedUntil = forfeitTime + (banMinutes * 60 * 1000);
 
+      const transactItems: any[] = [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `MATCH#${matchId}`, SK: "META" },
+            UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":status": "cancelled",
+              ":now":    forfeitTime,
+              ":by":     "early_forfeit"
+            }
+          }
+        }
+      ];
+
+      // Skip penalizing the developer in devBypass mode
+      if (!isDevBypass) {
+        transactItems.push({
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
+            UpdateExpression: "SET queueBanUntil = :ban, earlyLeaveCount = :cnt",
+            ExpressionAttributeValues: {
+              ":ban": bannedUntil,
+              ":cnt": newLeaveCount
+            }
+          }
+        });
+      }
+
       await dynamo.send(
         new TransactWriteCommand({
-          TransactItems: [
-            {
-              Update: {
-                TableName: TABLE,
-                Key: { PK: `MATCH#${matchId}`, SK: "META" },
-                UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by",
-                ExpressionAttributeNames: { "#s": "status" },
-                ExpressionAttributeValues: {
-                  ":status": "cancelled",
-                  ":now":    forfeitTime,
-                  ":by":     "early_forfeit"
-                }
-              }
-            },
-            {
-              Update: {
-                TableName: TABLE,
-                Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
-                UpdateExpression: "SET queueBanUntil = :ban, earlyLeaveCount = :cnt",
-                ExpressionAttributeValues: {
-                  ":ban": bannedUntil,
-                  ":cnt": newLeaveCount
-                }
-              }
-            }
-          ]
+          TransactItems: transactItems
         })
       );
 
