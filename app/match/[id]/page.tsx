@@ -139,6 +139,11 @@ export default function MatchArena() {
   const [exiting, setExiting] = useState(false);
   const [blurWarnings, setBlurWarnings] = useState(0);
 
+  // QA / Dev Toggle
+  const [devBypass, setDevBypass] = useState(false);
+  const myUsername = match && myRole ? match[myRole as "player1" | "player2"].username : "";
+  const isDev = myUsername === "Rishabh9877";
+
   // Hint state
   const [hintLoading, setHintLoading] = useState(false);
   const [hints, setHints] = useState<{ text: string; tier: number }[]>([]);
@@ -377,7 +382,7 @@ export default function MatchArena() {
       const res = await fetch("/api/match/forfeit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId }),
+        body: JSON.stringify({ matchId: match?.matchId, devBypass }),
       });
       
       if (res.ok) {
@@ -433,10 +438,10 @@ export default function MatchArena() {
 
   // ── Focus Mode Anti-Cheat ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!match || match.status !== "active" || matchOver || exiting) return;
+    if (!match || match.status !== "active" || matchOver || exiting || devBypass) return;
 
     const handleBlur = () => {
-      if (!match || match.status !== "active" || matchOver || exiting) return;
+      if (!match || match.status !== "active" || matchOver || exiting || devBypass) return;
 
       setBlurWarnings((prev) => {
         const newWarnings = prev + 1;
@@ -455,7 +460,7 @@ export default function MatchArena() {
       window.removeEventListener("blur", handleBlur);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match?.status, matchOver, exiting]);
+  }, [match?.status, matchOver, exiting, devBypass]);
 
   // ─── Loading / error states ─────────────────────────────────────────────────
 
@@ -675,6 +680,19 @@ export default function MatchArena() {
           </button>
         </div>
       </div>
+
+      {/* QA Bypass Toggle */}
+      {isDev && (
+        <div style={{
+          position: "absolute", bottom: 20, left: 20, zIndex: 9999,
+          background: devBypass ? "#eab308" : "#333", color: devBypass ? "#000" : "#fff",
+          padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer",
+          border: "2px solid #000",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.3)"
+        }} onClick={() => setDevBypass(!devBypass)}>
+          QA Bypass: {devBypass ? "ON" : "OFF"}
+        </div>
+      )}
 
       {/* Main layout: problem | editor */}
       <div style={s.body}>
