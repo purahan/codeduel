@@ -394,7 +394,7 @@ if (!input_data || input_data.length === 0 || input_data[0] === '') process.exit
 }
 
 export function generateCppWrapper(code: string, problemId: string): string {
-  let prefix = \`
+  let prefix = `
 #include <iostream>
 #include <vector>
 #include <string>
@@ -431,69 +431,69 @@ void printArray(const vector<int>& arr) {
     }
     cout << "]";
 }
-\`;
+`;
 
-  let suffix = \`
+  let suffix = `
 int main() {
     string line1, line2;
     if (!getline(cin, line1)) return 0;
     getline(cin, line2);
-\`;
+`;
 
   if (problemId === "valid-anagram") {
-    suffix += \`
+    suffix += `
     string s = stripQuotes(line1);
     string t = stripQuotes(line2);
     bool res = isAnagram(s, t);
     cout << (res ? "true" : "false") << endl;
-\`;
+`;
   } else if (problemId === "binary-search") {
-    suffix += \`
+    suffix += `
     vector<int> nums = parseArray(line1);
     int target = stoi(line2);
     int res = search(nums, target);
     cout << res << endl;
-\`;
+`;
   } else if (problemId === "palindrome-number") {
-    suffix += \`
+    suffix += `
     int x = stoi(line1);
     bool res = isPalindrome(x);
     cout << (res ? "true" : "false") << endl;
-\`;
+`;
   } else if (problemId === "contains-duplicate") {
-    suffix += \`
+    suffix += `
     vector<int> nums = parseArray(line1);
     bool res = containsDuplicate(nums);
     cout << (res ? "true" : "false") << endl;
-\`;
+`;
   } else if (problemId === "coin-change") {
-    suffix += \`
+    suffix += `
     vector<int> coins = parseArray(line1);
     int amount = stoi(line2);
     int res = coinChange(coins, amount);
     cout << res << endl;
-\`;
+`;
   } else if (problemId === "trapping-rain-water") {
-    suffix += \`
+    suffix += `
     vector<int> height = parseArray(line1);
     int res = trap(height);
     cout << res << endl;
-\`;
+`;
   } else {
-    suffix += \`
+    suffix += `
     cout << "C++ wrapper not fully implemented for this problem." << endl;
-\`;
+`;
   }
 
-  suffix += \`
+  suffix += `
     return 0;
 }
-\`;
-  return prefix + "\\n" + code + "\\n" + suffix;
+`;
+  return prefix + "\n" + code + "\n" + suffix;
 }
 
 export function generateJavaWrapper(code: string, problemId: string): string {
-  let prefix = \`
+  let prefix = `
 import java.util.*;
 
 class Helper {
@@ -516,9 +516,9 @@ class Helper {
 }
 
 class Solution {
-\`;
+`;
 
-  let suffix = \`
+  let suffix = `
 }
 
 class Main {
@@ -529,56 +529,56 @@ class Main {
         String line2 = sc.hasNextLine() ? sc.nextLine() : "";
         
         Solution sol = new Solution();
-\`;
+`;
 
   if (problemId === "valid-anagram") {
-    suffix += \`
+    suffix += `
         String s = Helper.stripQuotes(line1);
         String t = Helper.stripQuotes(line2);
         boolean res = sol.isAnagram(s, t);
         System.out.println(res);
-\`;
+`;
   } else if (problemId === "binary-search") {
-    suffix += \`
+    suffix += `
         int[] nums = Helper.parseArray(line1);
         int target = Integer.parseInt(line2);
         int res = sol.search(nums, target);
         System.out.println(res);
-\`;
+`;
   } else if (problemId === "palindrome-number") {
-    suffix += \`
+    suffix += `
         int x = Integer.parseInt(line1);
         boolean res = sol.isPalindrome(x);
         System.out.println(res);
-\`;
+`;
   } else if (problemId === "contains-duplicate") {
-    suffix += \`
+    suffix += `
         int[] nums = Helper.parseArray(line1);
         boolean res = sol.containsDuplicate(nums);
         System.out.println(res);
-\`;
+`;
   } else if (problemId === "coin-change") {
-    suffix += \`
+    suffix += `
         int[] coins = Helper.parseArray(line1);
         int amount = Integer.parseInt(line2);
         int res = sol.coinChange(coins, amount);
         System.out.println(res);
-\`;
+`;
   } else if (problemId === "trapping-rain-water") {
-    suffix += \`
+    suffix += `
         int[] height = Helper.parseArray(line1);
         int res = sol.trap(height);
         System.out.println(res);
-\`;
+`;
   } else {
-    suffix += \`
+    suffix += `
         System.out.println("Java wrapper not fully implemented for this problem.");
-\`;
+`;
   }
 
-  suffix += \`
+  suffix += `
     }
 }
-\`;
-  return prefix + "\\n" + code + "\\n" + suffix;
+`;
+  return prefix + "\n" + code + "\n" + suffix;
 }
