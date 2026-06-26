@@ -42,6 +42,8 @@ interface Match {
   player1: PlayerSlot;
   player2: PlayerSlot;
   endedBy?: string | null;
+  newWinnerElo?: number;
+  newLoserElo?: number;
 }
 
 interface SubmitResult {
