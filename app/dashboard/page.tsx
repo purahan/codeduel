@@ -311,15 +311,20 @@ export default function Dashboard() {
       }
       if (dashData && !dashData.error) {
         // Map postgres history to Recharts format
-        const history = dashData.eloHistory.map((h: any) => ({
-          label: new Date(h.played_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          elo: h.elo
-        }));
+        // FIX: Recharts groups points if dataKey is identical. Use a unique string (fullDate) to prevent merging.
+        const history = dashData.eloHistory.map((h: any, i: number) => {
+          const d = new Date(h.played_at);
+          return {
+            label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            fullDate: d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }) + `-${i}`, // Guaranteed unique
+            elo: h.elo
+          };
+        });
         
         // If they have no history, set a flat line of their current ELO
         if (history.length === 0 && meData) {
-          history.push({ label: "Start", elo: meData.elo });
-          history.push({ label: "Today", elo: meData.elo });
+          history.push({ label: "Start", fullDate: "Start", elo: meData.elo });
+          history.push({ label: "Today", fullDate: "Today", elo: meData.elo });
         }
         
         setEloHistory(history);
@@ -339,8 +344,8 @@ export default function Dashboard() {
       } else if (meData) {
         // Fallback if Postgres user record isn't fully synced yet
         const history = [
-          { label: "Start", elo: meData.elo },
-          { label: "Today", elo: meData.elo }
+          { label: "Start", fullDate: "Start", elo: meData.elo },
+          { label: "Today", fullDate: "Today", elo: meData.elo }
         ];
         setEloHistory(history);
         localStorage.setItem("dash_eloHistory", JSON.stringify(history));
@@ -767,7 +772,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={eloHistory} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={1} />
+                <XAxis dataKey="fullDate" tickFormatter={(val) => val.split(',')[0]} tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} interval={1} />
                 <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickLine={false} axisLine={false} width={36} domain={["auto","auto"]} />
                 <Tooltip content={<ChartTooltip />} />
                 <Line
