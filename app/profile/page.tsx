@@ -109,7 +109,7 @@ function eloRank(elo: number) {
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { matchState, showMatchModal, setShowMatchModal, handleCancel, handleFindMatch } = useMatchmaking();
+  const { matchState, handleCancel } = useMatchmaking();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +181,7 @@ export default function ProfilePage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {matchState === "queued"
               ? <button onClick={handleCancel} style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.4)", color: "#f87171", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>Cancel search</button>
-              : <button onClick={() => setShowMatchModal(true)} style={{ background: "#7c3aed", border: "none", color: "#fff", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 600 }}>⚡ Find Match</button>
+              : <button onClick={() => router.push("/dashboard?action=find_match")} style={{ background: "#7c3aed", border: "none", color: "#fff", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "inherit", fontWeight: 600 }}>⚡ Find Match</button>
             }
             <div style={{ position: "relative" }}>
               <div onClick={() => setShowProfileMenu(v => !v)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #2a2c30", overflow: "hidden", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1c20", fontSize: 13, fontWeight: 600 }}>
@@ -195,69 +195,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </nav>
-
-        {/* MATCH MODAL */}
-        {showMatchModal && (
-          <div style={{
-            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100
-          }}>
-            <div style={{
-              background: "#111317", border: "1px solid #2a2c30",
-              borderRadius: 12, padding: 30, width: "100%", maxWidth: 400,
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
-            }}>
-              <h2 style={{ fontSize: 20, marginBottom: 8, color: "#f5f3ec" }}>Select Match Type</h2>
-              <p style={{ color: "#8a8c82", fontSize: 13, marginBottom: 24 }}>How would you like to play?</p>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <button 
-                  onClick={() => { setShowMatchModal(false); handleFindMatch(); }}
-                  style={{
-                    background: "#7c3aed", color: "#fff", border: "none",
-                    padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                    cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-                    transition: "opacity 0.2s"
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.opacity = "0.9")}
-                  onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
-                >
-                  <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>⚡</div>
-                  Play Random Opponent
-                </button>
-
-                <button 
-                  onClick={() => { 
-                    setShowMatchModal(false); 
-                    router.push("/friends"); 
-                  }}
-                  style={{
-                    background: "rgba(255,255,255,0.05)", color: "#f5f3ec", border: "1px solid #2a2c30",
-                    padding: "14px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                    cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-                    transition: "background 0.2s"
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-                  onMouseOut={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-                >
-                  <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>👥</div>
-                  Challenge a Friend
-                </button>
-              </div>
-
-              <button 
-                onClick={() => { setShowMatchModal(false); }}
-                style={{
-                  width: "100%", background: "transparent", border: "none", color: "#8a8c82",
-                  marginTop: 20, cursor: "pointer", fontSize: 13, padding: 8
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
 
         <main style={S.main}>
           {/* PROFILE HEADER */}

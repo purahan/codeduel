@@ -268,6 +268,17 @@ export default function Dashboard() {
     }
     return [];
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("action") === "find_match") {
+        setShowMatchModal(true);
+        window.history.replaceState(null, "", "/dashboard");
+      }
+    }
+  }, [setShowMatchModal]);
+
   const [activityData, setActivityData] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
       try { return JSON.parse(localStorage.getItem("dash_activityData") || "{}"); } catch(e){}
