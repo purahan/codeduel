@@ -3,6 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from "@/lib/languages";
+import type { SupportedLanguage as Language } from "@/lib/languages";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -53,14 +55,6 @@ interface SubmitResult {
   error?: string;
 }
 
-type Language = "python" | "javascript" | "cpp" | "java";
-
-const LANG_LABELS: Record<Language, string> = {
-  python: "Python 3",
-  javascript: "JavaScript",
-  cpp: "C++",
-  java: "Java",
-};
 
 const MATCH_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -778,7 +772,7 @@ export default function MatchArena() {
             </div>
 
             <div style={s.langTabs}>
-              {(["python", "javascript", "cpp", "java"] as Language[]).map((lang) => (
+              {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang}
                   onClick={() => handleLangChange(lang)}

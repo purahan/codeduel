@@ -23,6 +23,7 @@
 // =============================================================================
 
 import { generatePythonWrapper, generateJavascriptWrapper } from "./wrappers";
+import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES } from "./languages";
 
 const PISTON_URL = "https://emkc.org/api/v2/piston";
 
@@ -32,16 +33,10 @@ const PISTON_TIMEOUT_MS = 10_000;
 // Maximum code size to send to Piston (100KB) — prevents abuse
 const MAX_CODE_SIZE_BYTES = 100_000;
 
-const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
-  python:     { language: "python",     version: "3.10.0" },
-  javascript: { language: "javascript", version: "18.15.0" },
-  cpp:        { language: "c++",        version: "10.2.0" },
-  java:       { language: "java",       version: "15.0.2" },
-  typescript: { language: "typescript", version: "5.0.3" },
-};
-
-// Allowlist of supported languages — reject anything not in this set
-const SUPPORTED_LANGUAGES = new Set(Object.keys(LANGUAGE_MAP));
+// NOTE: Supported languages and their Piston configs are defined in lib/languages.ts
+// (single source of truth). Do NOT add language entries here.
+// TODO(Issue #14): C++, Java, and TypeScript were removed because no execution
+// wrappers exist for them yet. Re-enable in lib/languages.ts once wrappers are built.
 
 export type ExecutionResult = {
   passed:    boolean;
@@ -67,12 +62,12 @@ async function runSingle(
 ): Promise<ExecutionResult> {
   // ── Input validation ──────────────────────────────────────────────────────
 
-  // Validate language against strict allowlist
-  if (!SUPPORTED_LANGUAGES.has(language)) {
+  // Validate language against strict allowlist (defined in lib/languages.ts)
+  if (!isSupportedLanguage(language)) {
     return {
       passed: false, status: "unsupported_language",
       runtimeMs: null, memoryKb: null,
-      stderr: `Language "${language}" is not supported. Supported: ${[...SUPPORTED_LANGUAGES].join(", ")}`,
+      stderr: `Language "${language}" is not supported. Supported: ${SUPPORTED_LANGUAGES.join(", ")}. More languages coming soon!`,
       stdout: null,
     };
   }
@@ -87,7 +82,7 @@ async function runSingle(
     };
   }
 
-  const lang = LANGUAGE_MAP[language];
+  const lang = LANGUAGE_CONFIG[language];
 
   // ── Build wrapped code for supported languages ────────────────────────────
 

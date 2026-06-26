@@ -7,6 +7,7 @@ import { getProblemById } from "@/lib/problems";
 import { runAllTestCases } from "@/lib/piston";
 import { calcElo } from "@/lib/elo";
 import sql from "@/lib/postgres";
+import { isSupportedLanguage } from "@/lib/languages";
 
 export async function POST(req: Request) {
   try {
@@ -21,6 +22,17 @@ export async function POST(req: Request) {
 
     if (!matchId || !code || !language) {
       return NextResponse.json({ error: "matchId, code and language are required" }, { status: 400 });
+    }
+
+    if (!isSupportedLanguage(language)) {
+      return NextResponse.json({
+        result: "unsupported_language",
+        testsPassed: 0,
+        testsTotal: 0,
+        matchOver: false,
+        won: false,
+        error: "This language is not yet supported. More languages coming soon!"
+      });
     }
 
     // 2 — Fetch match from DynamoDB
