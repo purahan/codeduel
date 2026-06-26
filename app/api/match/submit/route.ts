@@ -81,13 +81,11 @@ export async function POST(req: Request) {
       problem.id
     );
 
-    // SECURITY: If the execution service is down, return 503 immediately.
-    // Do NOT record a submission or update match state when we couldn't actually run the code.
-    if (execution.firstFailure?.status === "execution_service_unavailable") {
+    if (execution.firstFailure?.status === "execution_service_unavailable" || execution.firstFailure?.status === "rate_limited") {
       return NextResponse.json(
         {
-          error: "EXECUTION_SERVICE_UNAVAILABLE",
-          message: "Code execution service is temporarily unavailable. Please try again in a few moments.",
+          error: execution.firstFailure.status.toUpperCase(),
+          message: execution.firstFailure.stderr,
         },
         { status: 503 }
       );

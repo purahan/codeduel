@@ -128,6 +128,7 @@ export default function MatchArena() {
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
 
   const [exiting, setExiting] = useState(false);
@@ -330,7 +331,8 @@ export default function MatchArena() {
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (submitting || !code.trim()) return;
+    if (isSubmittingRef.current || !code.trim()) return;
+    isSubmittingRef.current = true;
     setSubmitting(true);
     setSubmitResult(null);
 
@@ -344,17 +346,21 @@ export default function MatchArena() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Backend returned a structured SubmitResult-shaped error (409/500)
-        if (data.result) {
-          setSubmitResult(data as SubmitResult);
+        // Backend returned a structured SubmitResult-shaped error (409/500/503)
+        if (data.result || data.error) {
+          setSubmitResult({
+            result: data.result || data.error.toLowerCase(),
+            testsPassed: 0, testsTotal: 0,
+            matchOver: false, won: false,
+            error: data.message || data.error || "Submission failed. Please try again.",
+          } as SubmitResult);
         } else {
           setSubmitResult({
             result: "error", testsPassed: 0, testsTotal: 0,
             matchOver: false, won: false,
-            error: data.message || data.error || "Submission failed. Please try again.",
+            error: "Submission failed. Please try again.",
           });
         }
-        // Also refresh match state in case it changed server-side
         fetchMatch();
         return;
       }
@@ -366,7 +372,6 @@ export default function MatchArena() {
         setWon(data.won);
         stopPolling();
         if (timerRef.current) clearInterval(timerRef.current);
-        // Refresh match for final state
         fetchMatch();
       }
     } catch {
@@ -376,6 +381,7 @@ export default function MatchArena() {
         error: "Network error — check your connection and try again.",
       });
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -860,28 +866,21 @@ export default function MatchArena() {
 
           {/* Submission result */}
           {submitResult && (
-            <div style={{
-              ...s.resultBar,
-              background: submitResult.result === "accepted"
-                ? "rgba(74,222,128,0.05)"
-                : "rgba(248,113,113,0.05)",
-              borderTop: `1px solid ${submitResult.result === "accepted" ? "rgba(74,222,128,0.2)" : "rgba(248,113,113,0.2)"}`,
-            }}>
+            <div style={s.resultBar}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{
-                  fontFamily: "JetBrains Mono, monospace",
-                  fontWeight: 700,
-                  fontSize: 13,
+                <div style={{
+                  ...s.resultTitle,
                   color: submitResult.result === "accepted" ? "#4ade80" : "#f87171",
                 }}>
-                  {submitResult.result === "accepted" ? "✓ Accepted" : `✗ ${submitResult.result.replace(/_/g, " ")}`}
-                </span>
-                <span style={{ color: "#555", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                  {submitResult.result === "accepted" ? "✅ Accepted" : `❌ ${submitResult.result.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
+                </div>
+                <div style={s.resultStats}>
                   {submitResult.testsPassed}/{submitResult.testsTotal} test cases passed
-                </span>
+                </div>
               </div>
+              
               {submitResult.error && (
-                <div style={s.errorBox}>{submitResult.error}</div>
+                <pre style={s.errorBox}>{submitResult.error}</pre>
               )}
             </div>
           )}
@@ -1076,6 +1075,14 @@ const s: Record<string, React.CSSProperties> = {
   resultBar: {
     padding: "10px 16px", flexShrink: 0,
     borderTop: "1px solid #1a1b1f",
+  },
+  resultTitle: {
+    fontFamily: "JetBrains Mono, monospace",
+    fontWeight: 700,
+    fontSize: 13,
+  },
+  resultStats: {
+    color: "#555", fontSize: 12, fontFamily: "JetBrains Mono, monospace"
   },
   errorBox: {
     marginTop: 8, background: "#1a1014", border: "1px solid rgba(248,113,113,0.2)",

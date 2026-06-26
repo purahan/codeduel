@@ -1,7 +1,4 @@
 export function generatePythonWrapper(code: string, problemId: string): string {
-  // If the user's code already has a call to the function or prints, we might not want to wrap it, 
-  // but let's assume they only wrote the function definition (LeetCode style).
-
   let prefix = `
 import sys
 import json
@@ -69,122 +66,141 @@ def serialize_list(head):
 
   let suffix = `
 if __name__ == '__main__':
-    input_data = sys.stdin.read().strip().split('\\n')
-    if not input_data or input_data == ['']: sys.exit(0)
+    import traceback
+    try:
+        all_inputs = json.loads(sys.stdin.read())
+    except:
+        sys.exit(0)
+    
+    _duel_results = []
+    for test_input in all_inputs:
+        input_data = test_input.strip().split('\\n')
+        if not input_data or input_data == ['']:
+            _duel_results.append(None)
+            continue
+        try:
 `;
 
   if (problemId === "invert-binary-tree") {
     suffix += `
-    lst = json.loads(input_data[0])
-    root = build_tree(lst)
-    res = invertTree(root)
-    print(json.dumps(serialize_tree(res)).replace(' ', ''))
+            lst = json.loads(input_data[0])
+            root = build_tree(lst)
+            res = invertTree(root)
+            _duel_results.append(json.dumps(serialize_tree(res)).replace(' ', ''))
 `;
   } else if (problemId === "valid-anagram") {
     suffix += `
-    s = input_data[0]
-    t = input_data[1]
-    res = isAnagram(s, t)
-    print(json.dumps(res).lower())
+            s = input_data[0]
+            t = input_data[1]
+            res = isAnagram(s, t)
+            _duel_results.append(json.dumps(res).lower())
 `;
   } else if (problemId === "binary-search") {
     suffix += `
-    nums = json.loads(input_data[0])
-    target = json.loads(input_data[1])
-    res = search(nums, target)
-    print(json.dumps(res))
+            nums = json.loads(input_data[0])
+            target = json.loads(input_data[1])
+            res = search(nums, target)
+            _duel_results.append(json.dumps(res))
 `;
   } else if (problemId === "palindrome-number") {
     suffix += `
-    x = json.loads(input_data[0])
-    res = isPalindrome(x)
-    print(json.dumps(res).lower())
+            x = json.loads(input_data[0])
+            res = isPalindrome(x)
+            _duel_results.append(json.dumps(res).lower())
 `;
   } else if (problemId === "contains-duplicate") {
     suffix += `
-    nums = json.loads(input_data[0])
-    res = containsDuplicate(nums)
-    print(json.dumps(res).lower())
+            nums = json.loads(input_data[0])
+            res = containsDuplicate(nums)
+            _duel_results.append(json.dumps(res).lower())
 `;
   } else if (problemId === "longest-substring-without-repeating-characters") {
     suffix += `
-    s = input_data[0]
-    res = lengthOfLongestSubstring(s)
-    print(json.dumps(res))
+            s = input_data[0]
+            res = lengthOfLongestSubstring(s)
+            _duel_results.append(json.dumps(res))
 `;
   } else if (problemId === "course-schedule") {
     suffix += `
-    numCourses = json.loads(input_data[0])
-    prerequisites = json.loads(input_data[1])
-    res = canFinish(numCourses, prerequisites)
-    print(json.dumps(res).lower())
+            numCourses = json.loads(input_data[0])
+            prerequisites = json.loads(input_data[1])
+            res = canFinish(numCourses, prerequisites)
+            _duel_results.append(json.dumps(res).lower())
 `;
   } else if (problemId === "coin-change") {
     suffix += `
-    coins = json.loads(input_data[0])
-    amount = json.loads(input_data[1])
-    res = coinChange(coins, amount)
-    print(json.dumps(res))
+            coins = json.loads(input_data[0])
+            amount = json.loads(input_data[1])
+            res = coinChange(coins, amount)
+            _duel_results.append(json.dumps(res))
 `;
   } else if (problemId === "daily-temperatures") {
     suffix += `
-    temperatures = json.loads(input_data[0])
-    res = dailyTemperatures(temperatures)
-    print(json.dumps(res).replace(' ', ''))
+            temperatures = json.loads(input_data[0])
+            res = dailyTemperatures(temperatures)
+            _duel_results.append(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "combinations") {
     suffix += `
-    n = json.loads(input_data[0])
-    k = json.loads(input_data[1])
-    res = combine(n, k)
-    print(json.dumps(res).replace(' ', ''))
+            n = json.loads(input_data[0])
+            k = json.loads(input_data[1])
+            res = combine(n, k)
+            _duel_results.append(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "trapping-rain-water") {
     suffix += `
-    height = json.loads(input_data[0])
-    res = trap(height)
-    print(json.dumps(res))
+            height = json.loads(input_data[0])
+            res = trap(height)
+            _duel_results.append(json.dumps(res))
 `;
   } else if (problemId === "reverse-nodes-in-k-group") {
     suffix += `
-    lst = json.loads(input_data[0])
-    k = json.loads(input_data[1])
-    head = build_list(lst)
-    res = reverseKGroup(head, k)
-    print(json.dumps(serialize_list(res)).replace(' ', ''))
+            lst = json.loads(input_data[0])
+            k = json.loads(input_data[1])
+            head = build_list(lst)
+            res = reverseKGroup(head, k)
+            _duel_results.append(json.dumps(serialize_list(res)).replace(' ', ''))
 `;
   } else if (problemId === "n-queens") {
     suffix += `
-    n = json.loads(input_data[0])
-    res = solveNQueens(n)
-    print(json.dumps(res).replace(' ', ''))
+            n = json.loads(input_data[0])
+            res = solveNQueens(n)
+            _duel_results.append(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "edit-distance") {
     suffix += `
-    word1 = input_data[0]
-    word2 = input_data[1]
-    res = minDistance(word1, word2)
-    print(json.dumps(res))
+            word1 = input_data[0]
+            word2 = input_data[1]
+            res = minDistance(word1, word2)
+            _duel_results.append(json.dumps(res))
 `;
   } else if (problemId === "word-ladder") {
     suffix += `
-    beginWord = input_data[0]
-    endWord = input_data[1]
-    raw = input_data[2].strip()
-    if raw.startswith('['):
-        raw = raw[1:]
-    if raw.endswith(']'):
-        raw = raw[:-1]
-    wordList = [w.strip() for w in raw.split(',')]
-    res = ladderLength(beginWord, endWord, wordList)
-    print(json.dumps(res))
+            beginWord = input_data[0]
+            endWord = input_data[1]
+            raw = input_data[2].strip()
+            if raw.startswith('['):
+                raw = raw[1:]
+            if raw.endswith(']'):
+                raw = raw[:-1]
+            wordList = [w.strip() for w in raw.split(',')]
+            res = ladderLength(beginWord, endWord, wordList)
+            _duel_results.append(json.dumps(res))
 `;
   } else {
-    // Generic fallback: try to parse first arg and assume one arg function named like problemId
     suffix += `
-    print("Wrapper not implemented for " + "${problemId}")
+            _duel_results.append("Wrapper not implemented for " + "${problemId}")
 `;
   }
+
+  suffix += `
+        except Exception as e:
+            _duel_results.append({"error": str(e), "traceback": traceback.format_exc()})
+            break
+
+    print("\\n---CODE_DUEL_RESULTS_START---")
+    print(json.dumps(_duel_results))
+`;
 
   return prefix + "\n" + code + "\n" + suffix;
 }
@@ -269,316 +285,146 @@ function serializeList(head) {
 
   let suffix = `
 const fs = require('fs');
-const input_data = fs.readFileSync(0, 'utf-8').trim().split('\\n');
-if (!input_data || input_data.length === 0 || input_data[0] === '') process.exit(0);
+try {
+    const stdinRaw = fs.readFileSync(0, 'utf-8');
+    const all_inputs = JSON.parse(stdinRaw);
+    let _duel_results = [];
+    for (let test_input of all_inputs) {
+        const input_data = test_input.trim().split('\\n');
+        if (!input_data || input_data.length === 0 || input_data[0] === '') {
+            _duel_results.push(null);
+            continue;
+        }
+        try {
 `;
 
   if (problemId === "invert-binary-tree") {
     suffix += `
-    let lst = JSON.parse(input_data[0]);
-    let root = buildTree(lst);
-    let res = invertTree(root);
-    console.log(JSON.stringify(serializeTree(res)));
+            let lst = JSON.parse(input_data[0]);
+            let root = buildTree(lst);
+            let res = invertTree(root);
+            _duel_results.push(JSON.stringify(serializeTree(res)));
 `;
   } else if (problemId === "valid-anagram") {
     suffix += `
-    let s = input_data[0];
-    let t = input_data[1];
-    let res = isAnagram(s, t);
-    console.log(JSON.stringify(res));
+            let s = input_data[0];
+            let t = input_data[1];
+            let res = isAnagram(s, t);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "binary-search") {
     suffix += `
-    let nums = JSON.parse(input_data[0]);
-    let target = JSON.parse(input_data[1]);
-    let res = search(nums, target);
-    console.log(JSON.stringify(res));
+            let nums = JSON.parse(input_data[0]);
+            let target = JSON.parse(input_data[1]);
+            let res = search(nums, target);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "palindrome-number") {
     suffix += `
-    let x = JSON.parse(input_data[0]);
-    let res = isPalindrome(x);
-    console.log(JSON.stringify(res));
+            let x = JSON.parse(input_data[0]);
+            let res = isPalindrome(x);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "contains-duplicate") {
     suffix += `
-    let nums = JSON.parse(input_data[0]);
-    let res = containsDuplicate(nums);
-    console.log(JSON.stringify(res));
+            let nums = JSON.parse(input_data[0]);
+            let res = containsDuplicate(nums);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "longest-substring-without-repeating-characters") {
     suffix += `
-    let s = input_data[0];
-    let res = lengthOfLongestSubstring(s);
-    console.log(JSON.stringify(res));
+            let s = input_data[0];
+            let res = lengthOfLongestSubstring(s);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "course-schedule") {
     suffix += `
-    let numCourses = JSON.parse(input_data[0]);
-    let prerequisites = JSON.parse(input_data[1]);
-    let res = canFinish(numCourses, prerequisites);
-    console.log(JSON.stringify(res));
+            let numCourses = JSON.parse(input_data[0]);
+            let prerequisites = JSON.parse(input_data[1]);
+            let res = canFinish(numCourses, prerequisites);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "coin-change") {
     suffix += `
-    let coins = JSON.parse(input_data[0]);
-    let amount = JSON.parse(input_data[1]);
-    let res = coinChange(coins, amount);
-    console.log(JSON.stringify(res));
+            let coins = JSON.parse(input_data[0]);
+            let amount = JSON.parse(input_data[1]);
+            let res = coinChange(coins, amount);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "daily-temperatures") {
     suffix += `
-    let temperatures = JSON.parse(input_data[0]);
-    let res = dailyTemperatures(temperatures);
-    console.log(JSON.stringify(res));
+            let temperatures = JSON.parse(input_data[0]);
+            let res = dailyTemperatures(temperatures);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "combinations") {
     suffix += `
-    let n = JSON.parse(input_data[0]);
-    let k = JSON.parse(input_data[1]);
-    let res = combine(n, k);
-    console.log(JSON.stringify(res));
+            let n = JSON.parse(input_data[0]);
+            let k = JSON.parse(input_data[1]);
+            let res = combine(n, k);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "trapping-rain-water") {
     suffix += `
-    let height = JSON.parse(input_data[0]);
-    let res = trap(height);
-    console.log(JSON.stringify(res));
+            let height = JSON.parse(input_data[0]);
+            let res = trap(height);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "reverse-nodes-in-k-group") {
     suffix += `
-    let lst = JSON.parse(input_data[0]);
-    let k = JSON.parse(input_data[1]);
-    let head = buildList(lst);
-    let res = reverseKGroup(head, k);
-    console.log(JSON.stringify(serializeList(res)));
+            let lst = JSON.parse(input_data[0]);
+            let k = JSON.parse(input_data[1]);
+            let head = buildList(lst);
+            let res = reverseKGroup(head, k);
+            _duel_results.push(JSON.stringify(serializeList(res)));
 `;
   } else if (problemId === "n-queens") {
     suffix += `
-    let n = JSON.parse(input_data[0]);
-    let res = solveNQueens(n);
-    console.log(JSON.stringify(res));
+            let n = JSON.parse(input_data[0]);
+            let res = solveNQueens(n);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "edit-distance") {
     suffix += `
-    let word1 = input_data[0];
-    let word2 = input_data[1];
-    let res = minDistance(word1, word2);
-    console.log(JSON.stringify(res));
+            let word1 = input_data[0];
+            let word2 = input_data[1];
+            let res = minDistance(word1, word2);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else if (problemId === "word-ladder") {
     suffix += `
-    let beginWord = input_data[0];
-    let endWord = input_data[1];
-    let raw = input_data[2].trim();
-    if (raw.startsWith('[')) raw = raw.slice(1);
-    if (raw.endsWith(']')) raw = raw.slice(0, -1);
-    let wordList = raw.split(',').map(w => w.trim());
-    let res = ladderLength(beginWord, endWord, wordList);
-    console.log(JSON.stringify(res));
+            let beginWord = input_data[0];
+            let endWord = input_data[1];
+            let raw = input_data[2].trim();
+            if (raw.startsWith('[')) raw = raw.slice(1);
+            if (raw.endsWith(']')) raw = raw.slice(0, -1);
+            let wordList = raw.split(',').map(w => w.trim());
+            let res = ladderLength(beginWord, endWord, wordList);
+            _duel_results.push(JSON.stringify(res));
 `;
   } else {
-      // Very simple generic JS fallback: assume a single arg that is JSON parsed
-      // and a function with camelCased problemId
       const camelId = problemId.split('-').map((s,i) => i===0 ? s : s[0].toUpperCase() + s.slice(1)).join('');
       suffix += `
-      let args = input_data.map(i => {
-          try { return JSON.parse(i); } catch(e) { return i; }
-      });
-      let res = ${camelId}(...args);
-      console.log(JSON.stringify(res));
+            let args = input_data.map(i => {
+                try { return JSON.parse(i); } catch(e) { return i; }
+            });
+            let res = ${camelId}(...args);
+            _duel_results.push(JSON.stringify(res));
       `;
   }
 
+  suffix += `
+        } catch (e) {
+            _duel_results.push({ error: e.message, traceback: e.stack });
+            break;
+        }
+    }
+    console.log("\\n---CODE_DUEL_RESULTS_START---");
+    console.log(JSON.stringify(_duel_results));
+} catch (e) {
+    process.exit(0);
+}
+`;
+
   return prefix + "\n" + code + "\n" + suffix;
-}
-
-export function generateCppWrapper(code: string, problemId: string): string {
-  let prefix = \`
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
-#include <algorithm>
-
-using namespace std;
-
-vector<int> parseArray(string s) {
-    vector<int> res;
-    s.erase(remove(s.begin(), s.end(), '['), s.end());
-    s.erase(remove(s.begin(), s.end(), ']'), s.end());
-    s.erase(remove(s.begin(), s.end(), ' '), s.end());
-    if (s.empty()) return res;
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, ',')) {
-        res.push_back(stoi(item));
-    }
-    return res;
-}
-
-string stripQuotes(string s) {
-    if (s.length() >= 2 && s.front() == '"' && s.back() == '"') {
-        return s.substr(1, s.length() - 2);
-    }
-    return s;
-}
-
-void printArray(const vector<int>& arr) {
-    cout << "[";
-    for(size_t i=0; i<arr.size(); ++i) {
-        cout << arr[i] << (i+1 == arr.size() ? "" : ",");
-    }
-    cout << "]";
-}
-\`;
-
-  let suffix = \`
-int main() {
-    string line1, line2;
-    if (!getline(cin, line1)) return 0;
-    getline(cin, line2);
-\`;
-
-  if (problemId === "valid-anagram") {
-    suffix += \`
-    string s = stripQuotes(line1);
-    string t = stripQuotes(line2);
-    bool res = isAnagram(s, t);
-    cout << (res ? "true" : "false") << endl;
-\`;
-  } else if (problemId === "binary-search") {
-    suffix += \`
-    vector<int> nums = parseArray(line1);
-    int target = stoi(line2);
-    int res = search(nums, target);
-    cout << res << endl;
-\`;
-  } else if (problemId === "palindrome-number") {
-    suffix += \`
-    int x = stoi(line1);
-    bool res = isPalindrome(x);
-    cout << (res ? "true" : "false") << endl;
-\`;
-  } else if (problemId === "contains-duplicate") {
-    suffix += \`
-    vector<int> nums = parseArray(line1);
-    bool res = containsDuplicate(nums);
-    cout << (res ? "true" : "false") << endl;
-\`;
-  } else if (problemId === "coin-change") {
-    suffix += \`
-    vector<int> coins = parseArray(line1);
-    int amount = stoi(line2);
-    int res = coinChange(coins, amount);
-    cout << res << endl;
-\`;
-  } else if (problemId === "trapping-rain-water") {
-    suffix += \`
-    vector<int> height = parseArray(line1);
-    int res = trap(height);
-    cout << res << endl;
-\`;
-  } else {
-    suffix += \`
-    cout << "C++ wrapper not fully implemented for this problem." << endl;
-\`;
-  }
-
-  suffix += \`
-    return 0;
-}
-\`;
-  return prefix + "\\n" + code + "\\n" + suffix;
-}
-
-export function generateJavaWrapper(code: string, problemId: string): string {
-  let prefix = \`
-import java.util.*;
-
-class Helper {
-    public static int[] parseArray(String s) {
-        s = s.replace("[", "").replace("]", "").replace(" ", "");
-        if (s.isEmpty()) return new int[0];
-        String[] parts = s.split(",");
-        int[] res = new int[parts.length];
-        for (int i = 0; i < parts.length; i++) {
-            res[i] = Integer.parseInt(parts[i]);
-        }
-        return res;
-    }
-    public static String stripQuotes(String s) {
-        if (s.length() >= 2 && s.startsWith("\\"") && s.endsWith("\\"")) {
-            return s.substring(1, s.length() - 1);
-        }
-        return s;
-    }
-}
-
-class Solution {
-\`;
-
-  let suffix = \`
-}
-
-class Main {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextLine()) return;
-        String line1 = sc.nextLine();
-        String line2 = sc.hasNextLine() ? sc.nextLine() : "";
-        
-        Solution sol = new Solution();
-\`;
-
-  if (problemId === "valid-anagram") {
-    suffix += \`
-        String s = Helper.stripQuotes(line1);
-        String t = Helper.stripQuotes(line2);
-        boolean res = sol.isAnagram(s, t);
-        System.out.println(res);
-\`;
-  } else if (problemId === "binary-search") {
-    suffix += \`
-        int[] nums = Helper.parseArray(line1);
-        int target = Integer.parseInt(line2);
-        int res = sol.search(nums, target);
-        System.out.println(res);
-\`;
-  } else if (problemId === "palindrome-number") {
-    suffix += \`
-        int x = Integer.parseInt(line1);
-        boolean res = sol.isPalindrome(x);
-        System.out.println(res);
-\`;
-  } else if (problemId === "contains-duplicate") {
-    suffix += \`
-        int[] nums = Helper.parseArray(line1);
-        boolean res = sol.containsDuplicate(nums);
-        System.out.println(res);
-\`;
-  } else if (problemId === "coin-change") {
-    suffix += \`
-        int[] coins = Helper.parseArray(line1);
-        int amount = Integer.parseInt(line2);
-        int res = sol.coinChange(coins, amount);
-        System.out.println(res);
-\`;
-  } else if (problemId === "trapping-rain-water") {
-    suffix += \`
-        int[] height = Helper.parseArray(line1);
-        int res = sol.trap(height);
-        System.out.println(res);
-\`;
-  } else {
-    suffix += \`
-        System.out.println("Java wrapper not fully implemented for this problem.");
-\`;
-  }
-
-  suffix += \`
-    }
-}
-\`;
-  return prefix + "\\n" + code + "\\n" + suffix;
 }

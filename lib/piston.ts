@@ -1,34 +1,17 @@
 // =============================================================================
 // SECURITY-HARDENED CODE EXECUTION MODULE
 // =============================================================================
-//
-// EXECUTION BACKENDS (priority order):
-//   1. Judge0 CE via RapidAPI (if JUDGE0_API_KEY is set)
-//   2. Self-hosted Piston (if PISTON_URL is set)
-//   3. Public Piston (emkc.org — DEPRECATED, whitelist-only since Feb 2026)
-//
-// SECURITY NOTE:
-// All code execution happens REMOTELY in sandboxed containers.
-// We NEVER execute user code locally under ANY circumstances.
-// =============================================================================
 
-import { generatePythonWrapper, generateJavascriptWrapper, generateCppWrapper, generateJavaWrapper } from "./wrappers";
-import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES } from "./languages";
-
-// ── Backend Configuration ────────────────────────────────────────────────────
+import { generatePythonWrapper, generateJavascriptWrapper } from "./wrappers";
+import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES, SupportedLanguage } from "./languages";
 
 const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY || "";
 const JUDGE0_HOST = process.env.JUDGE0_HOST || "judge0-ce.p.rapidapi.com";
 const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston";
 
-// Timeout for API requests (12 seconds — Judge0 can be slower than Piston)
-const API_TIMEOUT_MS = 12_000;
-
-// Maximum code size to send (100KB) — prevents abuse
+const API_TIMEOUT_MS = 15_000;
 const MAX_CODE_SIZE_BYTES = 100_000;
 
-// NOTE: Supported languages and their Piston configs are defined in lib/languages.ts
-// (single source of truth). Do NOT add language entries here.
 export type ExecutionResult = {
   passed:    boolean;
   status:    string;
@@ -38,23 +21,53 @@ export type ExecutionResult = {
   stdout:    string | null;
 };
 
-// ── Judge0 Backend ───────────────────────────────────────────────────────────
+type RunResponse = {
+  stdout: string;
+  stderr: string;
+  time: number | null;
+  compileError?: string;
+  isTLE?: boolean;
+};
 
-async function runViaJudge0(
-  code: string,
-  languageId: number,
-  stdin: string
-): Promise<{ stdout: string; stderr: string; time: number | null } | null> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 2): Promise<Response> {
+  let lastError: Error = new Error("Fetch failed");
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      
+      if (res.status === 429) {
+        if (i < retries) {
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+          continue;
+        }
+        throw new Error("RATE_LIMITED");
+      }
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return res;
+    } catch (err: any) {
+      lastError = err;
+      if (i < retries) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+        continue;
+      }
+    }
+  }
+  throw lastError;
+}
+
+async function runViaJudge0(code: string, languageId: number, stdin: string): Promise<RunResponse | null> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
-    // Judge0 expects base64-encoded source_code and stdin
     const b64Code  = Buffer.from(code, "utf-8").toString("base64");
     const b64Stdin = Buffer.from(stdin, "utf-8").toString("base64");
 
-    const response = await fetch(
-      `https://${JUDGE0_HOST}/submissions?base64_encoded=true&wait=true&fields=stdout,stderr,time,memory,status`,
+    const response = await fetchWithRetry(
+      `https://${JUDGE0_HOST}/submissions?base64_encoded=true&wait=true&fields=stdout,stderr,compile_output,time,memory,status`,
       {
         method: "POST",
         headers: {
@@ -70,201 +83,123 @@ async function runViaJudge0(
           wall_time_limit: 10,
           memory_limit: 256000,
         }),
-        signal: controller.signal,
       }
     );
 
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.error(`[judge0] HTTP ${response.status}: ${await response.text().catch(() => "no body")}`);
-      return null;
-    }
-
     const data = await response.json();
 
-    // Judge0 returns base64-encoded stdout/stderr
     const stdout = data.stdout ? Buffer.from(data.stdout, "base64").toString("utf-8") : "";
     const stderr = data.stderr ? Buffer.from(data.stderr, "base64").toString("utf-8") : "";
-    const time   = data.time ? parseFloat(data.time) * 1000 : null; // seconds → ms
+    const compileOutput = data.compile_output ? Buffer.from(data.compile_output, "base64").toString("utf-8") : "";
+    const time = data.time ? parseFloat(data.time) * 1000 : null;
+    const statusId = data.status?.id;
+
+    if (statusId === 11) { // Compilation Error
+      return { stdout, stderr, time, compileError: compileOutput };
+    }
+    
+    if (statusId === 5) { // Time Limit Exceeded
+      return { stdout, stderr, time, isTLE: true };
+    }
 
     return { stdout, stderr, time };
   } catch (err: any) {
-    const isAbort = err.name === "AbortError";
-    console.error(`[judge0] ${isAbort ? "Timed out" : "Error"}: ${err.message}`);
+    console.error(`[judge0] Error: ${err.message}`);
     return null;
   }
 }
 
-// ── Piston Backend (Fallback) ────────────────────────────────────────────────
-
-async function runViaPiston(
-  code: string,
-  language: string,
-  version: string,
-  stdin: string
-): Promise<{ stdout: string; stderr: string; time: number | null } | null> {
+async function runViaPiston(code: string, language: string, version: string, stdin: string): Promise<RunResponse | null> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
-    const response = await fetch(`${PISTON_URL}/execute`, {
+    const response = await fetchWithRetry(`${PISTON_URL}/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         language,
         version,
-        files:    [{ content: code }],
+        files: [{ content: code }],
         stdin,
         compile_timeout: 10000,
-        run_timeout:     3000,
+        run_timeout: 3000,
         compile_memory_limit: -1,
-        run_memory_limit:     -1,
+        run_memory_limit: -1,
       }),
-      signal: controller.signal,
     });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.error(`[piston] HTTP ${response.status}`);
-      return null;
-    }
 
     const data = await response.json();
 
-    // Check for whitelist rejection (Piston shut down public access Feb 2026)
     if (data.message && data.message.includes("whitelist")) {
       console.error(`[piston] Public API rejected: ${data.message}`);
       return null;
     }
 
-    return {
-      stdout: data.run?.stdout ?? "",
-      stderr: data.run?.stderr ?? "",
-      time:   null, // Piston doesn't return CPU time separately
-    };
+    const compileError = data.compile?.stderr || data.compile?.stdout ? (data.compile.stderr || data.compile.stdout) : undefined;
+    if (data.compile && data.compile.code !== 0) {
+       return { stdout: "", stderr: "", time: null, compileError };
+    }
+
+    const stdout = data.run?.stdout ?? "";
+    const stderr = data.run?.stderr ?? "";
+    const isTLE = data.run?.signal === "SIGKILL";
+
+    return { stdout, stderr, time: null, isTLE };
   } catch (err: any) {
-    const isAbort = err.name === "AbortError";
-    console.error(`[piston] ${isAbort ? "Timed out" : "Error"}: ${err.message}`);
+    console.error(`[piston] Error: ${err.message}`);
+    if (err.message === "RATE_LIMITED") {
+      throw new Error("RATE_LIMITED");
+    }
     return null;
   }
 }
 
-// ── Unified Single-Test Runner ───────────────────────────────────────────────
-
-/**
- * Execute a single test case against user code using a REMOTE sandbox.
- * Tries Judge0 first (if configured), then falls back to Piston.
- *
- * SECURITY: This function NEVER executes user code locally.
- */
-async function runSingle(
+async function runBatch(
   code: string,
   language: string,
-  input: string,
-  expectedOutput: string,
+  inputs: string[],
   problemId: string
-): Promise<ExecutionResult> {
-  // ── Input validation ──────────────────────────────────────────────────────
-
-  if (!isSupportedLanguage(language)) {
-    return {
-      passed: false, status: "unsupported_language",
-      runtimeMs: null, memoryKb: null,
-      stderr: `Language "${language}" is not supported. Supported: ${SUPPORTED_LANGUAGES.join(", ")}. More languages coming soon!`,
-      stdout: null,
-    };
-  }
-
+): Promise<{ result: RunResponse, isRateLimited: boolean, serviceDown: boolean }> {
   if (Buffer.byteLength(code, "utf-8") > MAX_CODE_SIZE_BYTES) {
-    return {
-      passed: false, status: "code_too_large",
-      runtimeMs: null, memoryKb: null,
-      stderr: `Code exceeds maximum allowed size of ${MAX_CODE_SIZE_BYTES} bytes`,
-      stdout: null,
-    };
+    return { result: { stdout: "", stderr: "Code exceeds max size", time: null, compileError: "Code too large" }, isRateLimited: false, serviceDown: false };
   }
 
-  const lang = LANGUAGE_CONFIG[language];
-
-  // ── Build wrapped code ────────────────────────────────────────────────────
-
+  const lang = LANGUAGE_CONFIG[language as SupportedLanguage];
   let finalCode = code;
   if (language === "python") {
     finalCode = generatePythonWrapper(code, problemId);
   } else if (language === "javascript") {
     finalCode = generateJavascriptWrapper(code, problemId);
-  } else if (language === "cpp") {
-    finalCode = generateCppWrapper(code, problemId);
-  } else if (language === "java") {
-    finalCode = generateJavaWrapper(code, problemId);
   }
 
-  // ── Execute via backend (Judge0 → Piston fallback) ────────────────────────
-
+  const stdin = JSON.stringify(inputs);
   const start = Date.now();
-  let result: { stdout: string; stderr: string; time: number | null } | null = null;
+  
+  let result: RunResponse | null = null;
+  let isRateLimited = false;
 
-  // Try Judge0 first if API key is configured
   if (JUDGE0_API_KEY) {
-    result = await runViaJudge0(finalCode, lang.judge0Id, input);
+    result = await runViaJudge0(finalCode, lang.judge0Id, stdin);
   }
 
-  // Fall back to Piston if Judge0 failed or isn't configured
   if (!result) {
-    result = await runViaPiston(finalCode, lang.language, lang.version, input);
+    try {
+      result = await runViaPiston(finalCode, lang.language, lang.version, stdin);
+    } catch (e: any) {
+      if (e.message === "RATE_LIMITED") {
+        isRateLimited = true;
+      }
+    }
   }
 
-  // Both backends failed
   if (!result) {
-    return {
-      passed: false,
-      status: "execution_service_unavailable",
-      runtimeMs: null,
-      memoryKb: null,
-      stderr: JUDGE0_API_KEY
-        ? "Code execution service is temporarily unavailable. Please try again in a few moments."
-        : "No execution backend configured. Please set JUDGE0_API_KEY in environment variables.",
-      stdout: null,
-    };
+    return { result: { stdout: "", stderr: "", time: null }, isRateLimited, serviceDown: true };
   }
 
-  const runtimeMs = result.time ?? (Date.now() - start);
-
-  // ── Compare output ────────────────────────────────────────────────────────
-
-  const actualOutput = (result.stdout ?? "").trim();
-  const expected     = expectedOutput.trim();
-  const passed       = actualOutput === expected;
-
-  if (result.stderr && !passed) {
-    console.error("EXECUTION ERROR:", result.stderr);
-    return {
-      passed: false, status: "runtime_error",
-      runtimeMs, memoryKb: null,
-      stderr: result.stderr, stdout: result.stdout,
-    };
+  if (result.time === null) {
+    result.time = Date.now() - start;
   }
-
-  if (!passed) {
-    console.log("WRONG ANSWER:");
-    console.log("  Input:", input);
-    console.log("  Expected:", expected);
-    console.log("  Actual:", actualOutput);
-  }
-
-  return {
-    passed,
-    status:    passed ? "accepted" : "wrong_answer",
-    runtimeMs,
-    memoryKb:  null,
-    stderr:    result.stderr ?? null,
-    stdout:    result.stdout ?? null,
-  };
+  
+  return { result, isRateLimited, serviceDown: false };
 }
-
-// ── Run All Test Cases ───────────────────────────────────────────────────────
 
 export async function runAllTestCases(
   code: string,
@@ -274,30 +209,127 @@ export async function runAllTestCases(
   _memoryLimitKb: number | undefined,
   problemId: string
 ): Promise<{
-  allPassed:    boolean;
-  passed:       number;
-  total:        number;
+  allPassed: boolean;
+  passed: number;
+  total: number;
   firstFailure: ExecutionResult | null;
-  runtimeMs:    number | null;
+  runtimeMs: number | null;
 }> {
-  let passed       = 0;
+  if (!isSupportedLanguage(language)) {
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false, status: "unsupported_language", runtimeMs: null, memoryKb: null,
+        stderr: "Language not supported", stdout: null
+      },
+      runtimeMs: null
+    };
+  }
+
+  const inputs = testCases.map(tc => tc.input);
+  const { result, isRateLimited, serviceDown } = await runBatch(code, language, inputs, problemId);
+
+  if (serviceDown) {
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false,
+        status: isRateLimited ? "rate_limited" : "execution_service_unavailable",
+        runtimeMs: null, memoryKb: null,
+        stderr: isRateLimited ? "Code execution rate limited. Please wait and try again." : "Code execution service is temporarily unavailable.",
+        stdout: null
+      },
+      runtimeMs: null
+    };
+  }
+
+  if (result.compileError) {
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false, status: "compilation_error",
+        runtimeMs: result.time, memoryKb: null,
+        stderr: result.compileError, stdout: null
+      },
+      runtimeMs: result.time
+    };
+  }
+
+  if (result.isTLE) {
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false, status: "time_limit_exceeded",
+        runtimeMs: result.time, memoryKb: null,
+        stderr: "Time Limit Exceeded", stdout: result.stdout
+      },
+      runtimeMs: result.time
+    };
+  }
+
+  // Parse the output block
+  const stdoutStr = result.stdout || "";
+  const delimiter = "---CODE_DUEL_RESULTS_START---";
+  const delimiterIdx = stdoutStr.lastIndexOf(delimiter);
+
+  if (delimiterIdx === -1) {
+    // Wrapper crashed before printing results (or syntax error inside code)
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false, status: "runtime_error",
+        runtimeMs: result.time, memoryKb: null,
+        stderr: result.stderr || "Runtime Error: Execution terminated unexpectedly. Check for infinite loops or syntax errors.", stdout: result.stdout
+      },
+      runtimeMs: result.time
+    };
+  }
+
+  const jsonStr = stdoutStr.slice(delimiterIdx + delimiter.length).trim();
+  const rawStdout = stdoutStr.slice(0, delimiterIdx).trim();
+
+  let resultsArr: any[] = [];
+  try {
+    resultsArr = JSON.parse(jsonStr);
+  } catch (e) {
+    return {
+      allPassed: false, passed: 0, total: testCases.length,
+      firstFailure: {
+        passed: false, status: "runtime_error",
+        runtimeMs: result.time, memoryKb: null,
+        stderr: "Failed to parse execution results. " + (result.stderr || ""), stdout: rawStdout
+      },
+      runtimeMs: result.time
+    };
+  }
+
+  let passed = 0;
   let firstFailure: ExecutionResult | null = null;
-  let totalRuntime = 0;
+  let totalRuntime = result.time || 0;
 
-  for (const tc of testCases) {
-    const result = await runSingle(code, language, tc.input, tc.expectedOutput, problemId);
-
-    // If the execution service is unavailable, fail fast — don't keep retrying
-    if (result.status === "execution_service_unavailable") {
-      firstFailure = result;
+  for (let i = 0; i < testCases.length; i++) {
+    const expected = testCases[i].expectedOutput.trim();
+    const res = resultsArr[i];
+    
+    if (res && typeof res === "object" && res.error) {
+      firstFailure = {
+        passed: false, status: "runtime_error",
+        runtimeMs: totalRuntime, memoryKb: null,
+        stderr: res.traceback || res.error, stdout: rawStdout
+      };
       break;
     }
-
-    if (result.passed) {
+    
+    const actualOutput = res !== null && res !== undefined ? String(res).trim() : "";
+    
+    if (actualOutput === expected) {
       passed++;
-      if (result.runtimeMs) totalRuntime += result.runtimeMs;
     } else {
-      firstFailure = result;
+      firstFailure = {
+        passed: false, status: "wrong_answer",
+        runtimeMs: totalRuntime, memoryKb: null,
+        stderr: result.stderr || null, stdout: rawStdout
+      };
       break;
     }
   }
@@ -305,7 +337,7 @@ export async function runAllTestCases(
   return {
     allPassed: passed === testCases.length,
     passed,
-    total:        testCases.length,
+    total: testCases.length,
     firstFailure,
     runtimeMs: totalRuntime > 0 ? totalRuntime : null,
   };
