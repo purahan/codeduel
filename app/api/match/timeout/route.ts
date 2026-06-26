@@ -60,25 +60,7 @@ export async function POST(req: Request) {
     }
 
     const now = Date.now();
-    const transactItems: any[] = [
-      // Always item 1: Update the match status to "timed_out"
-      {
-        Update: {
-          TableName: TABLE,
-          Key: { PK: `MATCH#${matchId}`, SK: "META" },
-          UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by, tie = :isTie" + (!isTie ? ", winnerId = :wid" : ""),
-          ExpressionAttributeNames: { "#s": "status" },
-          ExpressionAttributeValues: {
-            ":status": "timed_out",
-            ":now": now,
-            ":by": "timeout",
-            ":isTie": isTie,
-            ...(!isTie && { ":wid": winnerId })
-          }
-        }
-      }
-    ];
-
+    const transactItems: any[] = [];
     let newWinnerElo = 0;
     let newLoserElo = 0;
     let liveWinnerElo = 0;
@@ -86,7 +68,6 @@ export async function POST(req: Request) {
 
     // 5 — CONSTRUCT TRANSACTION PATH BASED ON OUTCOME
     if (!isTie) {
-      // Find out which helper object maps to winner vs loser to get their historical ELOs
       const winnerObj = p1.userId === winnerId ? p1 : p2;
       const loserObj  = p1.userId === loserId ? p1 : p2;
 
@@ -101,46 +82,62 @@ export async function POST(req: Request) {
       newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
       newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
 
-      // Append Winner Profile Update (with Optimistic Lock Guard)
+      // 1: Update the match status to "timed_out" with ELO changes
+      transactItems.push({
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `MATCH#${matchId}`, SK: "META" },
+          UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by, tie = :isTie, winnerId = :wid, newWinnerElo = :nwe, newLoserElo = :nle",
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: {
+            ":status": "timed_out", ":now": now, ":by": "timeout", ":isTie": isTie,
+            ":wid": winnerId, ":nwe": newWinnerElo, ":nle": newLoserElo
+          }
+        }
+      });
+
       transactItems.push({
         Update: {
           TableName: TABLE,
           Key: { PK: `USER#${winnerId}`, SK: "PROFILE" },
           UpdateExpression: "SET elo = :newElo ADD wins :one",
-          ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
+          ConditionExpression: "elo = :liveElo",
           ExpressionAttributeValues: { ":newElo": newWinnerElo, ":liveElo": liveWinnerElo, ":one": 1 }
         }
       });
 
-      // Append Winner Leaderboard Entry
       transactItems.push({
         Put: {
           TableName: TABLE,
-          Item: {
-            PK: `USER#${winnerId}`, SK: "LEADERBOARD", GSI1PK: "LEADERBOARD#GLOBAL", GSI1SK: newWinnerElo,
-            userId: winnerId, username: winnerObj.username
-          }
+          Item: { PK: `USER#${winnerId}`, SK: "LEADERBOARD", GSI1PK: "LEADERBOARD#GLOBAL", GSI1SK: newWinnerElo, userId: winnerId, username: winnerObj.username }
         }
       });
 
-      // Append Loser Profile Update (with Optimistic Lock Guard)
       transactItems.push({
         Update: {
           TableName: TABLE,
           Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
           UpdateExpression: "SET elo = :newElo ADD losses :one",
-          ConditionExpression: "elo = :liveElo", // Must match the Pre-Flight live read!
+          ConditionExpression: "elo = :liveElo",
           ExpressionAttributeValues: { ":newElo": newLoserElo, ":liveElo": liveLoserElo, ":one": 1 }
         }
       });
 
-      // Append Loser Leaderboard Entry
       transactItems.push({
         Put: {
           TableName: TABLE,
-          Item: {
-            PK: `USER#${loserId}`, SK: "LEADERBOARD", GSI1PK: "LEADERBOARD#GLOBAL", GSI1SK: newLoserElo,
-            userId: loserId, username: loserObj.username
+          Item: { PK: `USER#${loserId}`, SK: "LEADERBOARD", GSI1PK: "LEADERBOARD#GLOBAL", GSI1SK: newLoserElo, userId: loserId, username: loserObj.username }
+        }
+      });
+    } else {
+      transactItems.push({
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `MATCH#${matchId}`, SK: "META" },
+          UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by, tie = :isTie",
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: {
+            ":status": "timed_out", ":now": now, ":by": "timeout", ":isTie": isTie
           }
         }
       });

@@ -12,7 +12,7 @@
 // We NEVER execute user code locally under ANY circumstances.
 // =============================================================================
 
-import { generatePythonWrapper, generateJavascriptWrapper } from "./wrappers";
+import { generatePythonWrapper, generateJavascriptWrapper, generateCppWrapper, generateJavaWrapper } from "./wrappers";
 import { LANGUAGE_CONFIG, isSupportedLanguage, SUPPORTED_LANGUAGES } from "./languages";
 
 // ── Backend Configuration ────────────────────────────────────────────────────
@@ -27,6 +27,8 @@ const API_TIMEOUT_MS = 12_000;
 // Maximum code size to send (100KB) — prevents abuse
 const MAX_CODE_SIZE_BYTES = 100_000;
 
+// NOTE: Supported languages and their Piston configs are defined in lib/languages.ts
+// (single source of truth). Do NOT add language entries here.
 export type ExecutionResult = {
   passed:    boolean;
   status:    string;
@@ -193,6 +195,10 @@ async function runSingle(
     finalCode = generatePythonWrapper(code, problemId);
   } else if (language === "javascript") {
     finalCode = generateJavascriptWrapper(code, problemId);
+  } else if (language === "cpp") {
+    finalCode = generateCppWrapper(code, problemId);
+  } else if (language === "java") {
+    finalCode = generateJavaWrapper(code, problemId);
   }
 
   // ── Execute via backend (Judge0 → Piston fallback) ────────────────────────

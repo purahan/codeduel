@@ -183,13 +183,15 @@ export async function POST(req: Request) {
                 TableName: TABLE,
                 Key: { PK: `MATCH#${matchId}`, SK: "META" },
                 UpdateExpression:
-                  "SET #s = :status, winnerId = :wid, finishedAt = :now, endedBy = :by",
+                  "SET #s = :status, winnerId = :wid, finishedAt = :now, endedBy = :by, newWinnerElo = :nwe, newLoserElo = :nle",
                 ExpressionAttributeNames: { "#s": "status" },
                 ExpressionAttributeValues: {
                   ":status": "finished",
                   ":wid":      userId,
                   ":now":      now,
                   ":by":       "submission",
+                  ":nwe":      newWinnerElo,
+                  ":nle":      newLoserElo,
                 },
               },
             },

@@ -204,102 +204,76 @@ export default function MatchArena() {
   }, [match?.status, matchId, myId, stopPolling]);
 
   // ── Fetch match (with retry for post-creation race condition) ───────────────
-  const fetchMatch = useCallback(async () => {
+  const isInitialized = useRef(false);
+
+  const fetchMatch = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/match/${matchId}`);
+      const res = await fetch(`/api/match/${matchId}`, { signal });
       if (!res.ok) {
-        const d = await res.json();
-        setLoadError(d.error ?? "Match not found");
-        return;
+        const d = await res.json().catch(() => ({}));
+        throw { status: res.status, message: d.error ?? "Match not found" };
       }
       const data = await res.json();
       setMatch(data.match);
       setProblem(data.problem);
+      if (!myRole && data.myRole) setMyRole(data.myRole);
 
-      if (!myRole && data.myRole) {
-        setMyRole(data.myRole);
+      if (!isInitialized.current) {
+        if (data.problem?.starterCode) {
+          setCode((prev) => prev || data.problem.starterCode["python"] || "");
+        }
+        isInitialized.current = true;
       }
 
-      // Set starter code on first load
-      if (!code && data.problem?.starterCode) {
-        setCode(data.problem.starterCode[language] ?? "");
-      }
-
-      // Check if match is already over
       if (data.match.status !== "active") {
         setFinalMatchPayload(data.match);
         setMatchOver(true);
         setWon(resolveWon(data.match, myId));
         stopPolling();
       }
-    } catch {
-      setLoadError("Failed to load match");
+      return data;
+    } catch (err: any) {
+      if (err.name === "AbortError") throw err;
+      if (err.status) throw err;
+      throw { status: 500, message: "Failed to load match" };
     }
-  }, [matchId, myRole, code, language, myId]);
+  }, [matchId, myRole, myId, stopPolling]);
 
-  // Retry loop — only retries on 404 (match not yet committed to DynamoDB).
-  // Definitive errors (401, 403, 400) are surfaced immediately — no retrying.
+  // ── Initial Load & Retry Loop ────────────────────────────────────────────────
   useEffect(() => {
     if (authStatus !== "authenticated") return;
-
-    let cancelled = false;
+    const controller = new AbortController();
+    let attempt = 1;
     const MAX_ATTEMPTS = 8;
     const DELAY_MS = 700;
 
-    const tryLoad = async (attempt: number) => {
+    const tryLoad = async () => {
+      if (controller.signal.aborted) return;
       try {
-        const res = await fetch(`/api/match/${matchId}`);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) {
-            setMatch(data.match);
-            setProblem(data.problem);
-            setRetrying(false);
-            if (!myRole && data.myRole) setMyRole(data.myRole);
-            if (!code && data.problem?.starterCode)
-              setCode(data.problem.starterCode[language] ?? "");
-            if (data.match.status !== "active") {
-              setFinalMatchPayload(data.match);
-              setMatchOver(true);
-              setWon(resolveWon(data.match, myId));
-              stopPolling();
-            }
-          }
-          return;
-        }
-
-        const errBody = await res.json().catch(() => ({}));
-        const errMsg  = errBody.error ?? "Match not found";
-
-        // Definitive errors — do not retry, show immediately
-        if (res.status === 401 || res.status === 403 || res.status === 400) {
-          if (!cancelled) { setRetrying(false); setLoadError(errMsg); }
-          return;
-        }
-
-        // 404 / 5xx — retry if attempts remain
-        if (attempt < MAX_ATTEMPTS) {
-          if (!cancelled) setRetrying(true);
-          setTimeout(() => { if (!cancelled) tryLoad(attempt + 1); }, DELAY_MS);
-        } else {
-          if (!cancelled) { setRetrying(false); setLoadError(errMsg); }
-        }
-      } catch {
-        if (attempt < MAX_ATTEMPTS) {
-          if (!cancelled) setRetrying(true);
-          setTimeout(() => { if (!cancelled) tryLoad(attempt + 1); }, DELAY_MS);
-        } else if (!cancelled) {
+        await fetchMatch(controller.signal);
+        setRetrying(false);
+      } catch (err: any) {
+        if (controller.signal.aborted) return;
+        
+        if (err.status === 401 || err.status === 403 || err.status === 400) {
           setRetrying(false);
-          setLoadError("Failed to load match");
+          setLoadError(err.message);
+          return;
+        }
+
+        if (attempt < MAX_ATTEMPTS) {
+          attempt++;
+          setRetrying(true);
+          setTimeout(tryLoad, DELAY_MS);
+        } else {
+          setRetrying(false);
+          setLoadError(err.message || "Failed to load match");
         }
       }
     };
-
-    tryLoad(1);
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, matchId]);
+    tryLoad();
+    return () => controller.abort();
+  }, [authStatus, fetchMatch]);
 
   
 
@@ -526,9 +500,22 @@ export default function MatchArena() {
 
   // ─── Match over modal ───────────────────────────────────────────────────────
   if (matchOver) {
-    const eloChange = submitResult?.eloChange;
-    const newElo = submitResult?.newElo;
     const modalMatch = finalMatchPayload || match;
+    let computedEloChange: number | undefined = undefined;
+    let computedNewElo: number | undefined = undefined;
+
+    if (submitResult?.newElo !== undefined) {
+      computedNewElo = submitResult.newElo;
+      computedEloChange = submitResult.eloChange;
+    } else if (modalMatch?.newWinnerElo !== undefined && modalMatch?.newLoserElo !== undefined) {
+      if (won === true) {
+        computedNewElo = modalMatch.newWinnerElo;
+        computedEloChange = modalMatch.newWinnerElo - (me?.elo ?? 1200);
+      } else if (won === false) {
+        computedNewElo = modalMatch.newLoserElo;
+        computedEloChange = modalMatch.newLoserElo - (me?.elo ?? 1200);
+      }
+    }
 
     let title = "";
     let color = "";
@@ -582,18 +569,18 @@ export default function MatchArena() {
                   {submitResult.testsPassed}/{submitResult.testsTotal}
                 </span>
               </div>
-              {eloChange !== undefined && (
+              {computedEloChange !== undefined && (
                 <div style={s.modalStat}>
                   <span style={s.modalStatLabel}>ELO Change</span>
-                  <span style={{ ...s.modalStatValue, color: eloChange >= 0 ? "#7cff6b" : "#f87171" }}>
-                    {eloChange >= 0 ? "+" : ""}{eloChange}
+                  <span style={{ ...s.modalStatValue, color: computedEloChange >= 0 ? "#7cff6b" : "#f87171" }}>
+                    {computedEloChange >= 0 ? "+" : ""}{computedEloChange}
                   </span>
                 </div>
               )}
-              {newElo !== undefined && (
+              {computedNewElo !== undefined && (
                 <div style={s.modalStat}>
                   <span style={s.modalStatLabel}>New ELO</span>
-                  <span style={s.modalStatValue}>{newElo}</span>
+                  <span style={s.modalStatValue}>{computedNewElo}</span>
                 </div>
               )}
             </div>

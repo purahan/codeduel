@@ -392,3 +392,193 @@ if (!input_data || input_data.length === 0 || input_data[0] === '') process.exit
 
   return prefix + "\n" + code + "\n" + suffix;
 }
+
+export function generateCppWrapper(code: string, problemId: string): string {
+  let prefix = \`
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <algorithm>
+
+using namespace std;
+
+vector<int> parseArray(string s) {
+    vector<int> res;
+    s.erase(remove(s.begin(), s.end(), '['), s.end());
+    s.erase(remove(s.begin(), s.end(), ']'), s.end());
+    s.erase(remove(s.begin(), s.end(), ' '), s.end());
+    if (s.empty()) return res;
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, ',')) {
+        res.push_back(stoi(item));
+    }
+    return res;
+}
+
+string stripQuotes(string s) {
+    if (s.length() >= 2 && s.front() == '"' && s.back() == '"') {
+        return s.substr(1, s.length() - 2);
+    }
+    return s;
+}
+
+void printArray(const vector<int>& arr) {
+    cout << "[";
+    for(size_t i=0; i<arr.size(); ++i) {
+        cout << arr[i] << (i+1 == arr.size() ? "" : ",");
+    }
+    cout << "]";
+}
+\`;
+
+  let suffix = \`
+int main() {
+    string line1, line2;
+    if (!getline(cin, line1)) return 0;
+    getline(cin, line2);
+\`;
+
+  if (problemId === "valid-anagram") {
+    suffix += \`
+    string s = stripQuotes(line1);
+    string t = stripQuotes(line2);
+    bool res = isAnagram(s, t);
+    cout << (res ? "true" : "false") << endl;
+\`;
+  } else if (problemId === "binary-search") {
+    suffix += \`
+    vector<int> nums = parseArray(line1);
+    int target = stoi(line2);
+    int res = search(nums, target);
+    cout << res << endl;
+\`;
+  } else if (problemId === "palindrome-number") {
+    suffix += \`
+    int x = stoi(line1);
+    bool res = isPalindrome(x);
+    cout << (res ? "true" : "false") << endl;
+\`;
+  } else if (problemId === "contains-duplicate") {
+    suffix += \`
+    vector<int> nums = parseArray(line1);
+    bool res = containsDuplicate(nums);
+    cout << (res ? "true" : "false") << endl;
+\`;
+  } else if (problemId === "coin-change") {
+    suffix += \`
+    vector<int> coins = parseArray(line1);
+    int amount = stoi(line2);
+    int res = coinChange(coins, amount);
+    cout << res << endl;
+\`;
+  } else if (problemId === "trapping-rain-water") {
+    suffix += \`
+    vector<int> height = parseArray(line1);
+    int res = trap(height);
+    cout << res << endl;
+\`;
+  } else {
+    suffix += \`
+    cout << "C++ wrapper not fully implemented for this problem." << endl;
+\`;
+  }
+
+  suffix += \`
+    return 0;
+}
+\`;
+  return prefix + "\\n" + code + "\\n" + suffix;
+}
+
+export function generateJavaWrapper(code: string, problemId: string): string {
+  let prefix = \`
+import java.util.*;
+
+class Helper {
+    public static int[] parseArray(String s) {
+        s = s.replace("[", "").replace("]", "").replace(" ", "");
+        if (s.isEmpty()) return new int[0];
+        String[] parts = s.split(",");
+        int[] res = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            res[i] = Integer.parseInt(parts[i]);
+        }
+        return res;
+    }
+    public static String stripQuotes(String s) {
+        if (s.length() >= 2 && s.startsWith("\\"") && s.endsWith("\\"")) {
+            return s.substring(1, s.length() - 1);
+        }
+        return s;
+    }
+}
+
+class Solution {
+\`;
+
+  let suffix = \`
+}
+
+class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextLine()) return;
+        String line1 = sc.nextLine();
+        String line2 = sc.hasNextLine() ? sc.nextLine() : "";
+        
+        Solution sol = new Solution();
+\`;
+
+  if (problemId === "valid-anagram") {
+    suffix += \`
+        String s = Helper.stripQuotes(line1);
+        String t = Helper.stripQuotes(line2);
+        boolean res = sol.isAnagram(s, t);
+        System.out.println(res);
+\`;
+  } else if (problemId === "binary-search") {
+    suffix += \`
+        int[] nums = Helper.parseArray(line1);
+        int target = Integer.parseInt(line2);
+        int res = sol.search(nums, target);
+        System.out.println(res);
+\`;
+  } else if (problemId === "palindrome-number") {
+    suffix += \`
+        int x = Integer.parseInt(line1);
+        boolean res = sol.isPalindrome(x);
+        System.out.println(res);
+\`;
+  } else if (problemId === "contains-duplicate") {
+    suffix += \`
+        int[] nums = Helper.parseArray(line1);
+        boolean res = sol.containsDuplicate(nums);
+        System.out.println(res);
+\`;
+  } else if (problemId === "coin-change") {
+    suffix += \`
+        int[] coins = Helper.parseArray(line1);
+        int amount = Integer.parseInt(line2);
+        int res = sol.coinChange(coins, amount);
+        System.out.println(res);
+\`;
+  } else if (problemId === "trapping-rain-water") {
+    suffix += \`
+        int[] height = Helper.parseArray(line1);
+        int res = sol.trap(height);
+        System.out.println(res);
+\`;
+  } else {
+    suffix += \`
+        System.out.println("Java wrapper not fully implemented for this problem.");
+\`;
+  }
+
+  suffix += \`
+    }
+}
+\`;
+  return prefix + "\\n" + code + "\\n" + suffix;
+}
