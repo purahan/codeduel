@@ -186,7 +186,7 @@ export default function MatchArena() {
 
         // FIX: If the match is no longer active (someone won, time ran out, or someone forfeited)
         if (data.match.status !== "active") {
-          
+
           // Trigger a browser notification for Player B if Player A forfeited
           if (data.match.status === "forfeited" && match?.status === "active") {
             alert("The opponent has forfeited the match! You win by default.");
@@ -257,7 +257,7 @@ export default function MatchArena() {
         setRetrying(false);
       } catch (err: any) {
         if (controller.signal.aborted) return;
-        
+
         if (err.status === 401 || err.status === 403 || err.status === 400) {
           setRetrying(false);
           setLoadError(err.message);
@@ -278,9 +278,9 @@ export default function MatchArena() {
     return () => controller.abort();
   }, [authStatus, fetchMatch]);
 
-  
 
-  
+
+
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -293,7 +293,7 @@ export default function MatchArena() {
 
       if (left === 0) {
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         const handleTimeout = async () => {
           try {
             const res = await fetch("/api/match/timeout", {
@@ -314,7 +314,7 @@ export default function MatchArena() {
             fetchMatch();
           }
         };
-        
+
         handleTimeout();
       }
     };
@@ -344,7 +344,7 @@ export default function MatchArena() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchId, code, language }),
       });
-      
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -366,7 +366,7 @@ export default function MatchArena() {
         fetchMatch();
         return;
       }
-      
+
       setSubmitResult(data as SubmitResult);
 
       if (data.matchOver) {
@@ -389,10 +389,10 @@ export default function MatchArena() {
   };
 
   // ── Forfeit Match ──────────────────────────────────────────────────────────
-  
+
   const handleForfeit = async (forceSilent?: boolean) => {
     if (exiting || matchOver) return;
-    
+
     if (!forceSilent) {
       const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
       if (!confirm) return;
@@ -405,12 +405,12 @@ export default function MatchArena() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchId: match?.matchId, devBypass }),
       });
-      
+
       if (res.ok) {
         // Stop tracking locally
         stopPolling();
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         // Force a hard browser redirect instead of a Next.js soft route
         // This guarantees the UI instantly unmounts and grabs fresh database info
         window.location.href = "/dashboard";
@@ -490,8 +490,8 @@ export default function MatchArena() {
             {loadError === "Forbidden"
               ? "You are not a participant in this match. Make sure you are signed in as one of the two players."
               : loadError === "Unauthorized"
-              ? "Session expired. Please sign in again."
-              : "The match may have expired or the ID is invalid."}
+                ? "Session expired. Please sign in again."
+                : "The match may have expired or the ID is invalid."}
           </p>
           <button onClick={() => router.push("/dashboard")} style={s.backBtn}>← Back to Dashboard</button>
         </div>
@@ -548,8 +548,8 @@ export default function MatchArena() {
         subtext = won
           ? `You outran ${opponent.username}`
           : `${modalMatch[myRole === "player1" ? "player2" : "player1"].username === modalMatch.winnerId
-              ? opponent.username
-              : me.username} won this duel`;
+            ? opponent.username
+            : me.username} won this duel`;
       }
     }
 
@@ -664,9 +664,9 @@ export default function MatchArena() {
               opacity: exiting ? 0.5 : 1,
               cursor: exiting || submitting ? "not-allowed" : "pointer",
             }}
-            onMouseEnter={(e) => { 
+            onMouseEnter={(e) => {
               if (!exiting && !submitting) {
-                e.currentTarget.style.background = "rgba(248,113,113,0.1)"; 
+                e.currentTarget.style.background = "rgba(248,113,113,0.1)";
               }
             }}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
@@ -845,15 +845,15 @@ export default function MatchArena() {
                   // Tab key inserts 4 spaces
                   if (e.key === "Tab") {
                     e.preventDefault();
-                    const el    = e.currentTarget;
+                    const el = e.currentTarget;
                     const start = el.selectionStart;
-                    const end   = el.selectionEnd;
+                    const end = el.selectionEnd;
                     const newCode = code.substring(0, start) + "    " + code.substring(end);
                     setCode(newCode);
                     setTimeout(() => {
                       if (el) {
                         el.selectionStart = start + 4;
-                        el.selectionEnd   = start + 4;
+                        el.selectionEnd = start + 4;
                       }
                     }, 0);
                   }
@@ -880,7 +880,7 @@ export default function MatchArena() {
                   {submitResult.testsPassed}/{submitResult.testsTotal} test cases passed
                 </div>
               </div>
-              
+
               {submitResult.error && (
                 <pre style={s.errorBox}>{submitResult.error}</pre>
               )}
@@ -961,7 +961,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent", color: "#f87171",
     border: "1px solid rgba(248,113,113,0.3)", borderRadius: 8,
     padding: "8px 16px", fontSize: 13, fontWeight: 600,
-    fontFamily: "Inter, sans-serif", transition: "all 0.15s", 
+    fontFamily: "Inter, sans-serif", transition: "all 0.15s",
     flexShrink: 0,
     marginLeft: "4px",
     marginRight: "4px"

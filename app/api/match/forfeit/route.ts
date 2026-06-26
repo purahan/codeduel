@@ -53,11 +53,11 @@ export async function POST(req: Request) {
 
     // 5 — CHOOSE WINNER AND LOSER BASED ON WHO FORFEITED
     // The person making this API call is the leaver (loser). The other person wins automatically.
-    const loserObj  = isPlayer1 ? match.player1 : match.player2;
+    const loserObj = isPlayer1 ? match.player1 : match.player2;
     const winnerObj = isPlayer1 ? match.player2 : match.player1;
 
     const winnerId = winnerObj.userId;
-    const loserId  = loserObj.userId;
+    const loserId = loserObj.userId;
 
     // Fetch the live profile ELOs instead of relying on the old match snapshot
     const [winnerRes, loserRes] = await Promise.all([
@@ -79,8 +79,8 @@ export async function POST(req: Request) {
             ExpressionAttributeNames: { "#s": "status" },
             ExpressionAttributeValues: {
               ":status": "cancelled",
-              ":now":    forfeitTime,
-              ":by":     "early_forfeit"
+              ":now": forfeitTime,
+              ":by": "early_forfeit"
             }
           }
         }
@@ -103,10 +103,10 @@ export async function POST(req: Request) {
     }
 
     const liveWinnerElo = winnerRes.Item?.elo ?? 1200;
-    const liveLoserElo  = loserRes.Item?.elo ?? 1200;
+    const liveLoserElo = loserRes.Item?.elo ?? 1200;
 
     const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
-    const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
+    const newLoserElo = calcElo(liveLoserElo, liveWinnerElo, false);
 
     const now = Date.now();
 
@@ -123,9 +123,9 @@ export async function POST(req: Request) {
               ExpressionAttributeNames: { "#s": "status" },
               ExpressionAttributeValues: {
                 ":status": "forfeited",
-                ":wid":      winnerId,
-                ":now":      now,
-                ":by":       "forfeit"
+                ":wid": winnerId,
+                ":now": now,
+                ":by": "forfeit"
               }
             }
           },
@@ -150,11 +150,11 @@ export async function POST(req: Request) {
             Put: {
               TableName: TABLE,
               Item: {
-                PK:       `USER#${winnerId}`,
-                SK:       "LEADERBOARD",
-                GSI1PK:   "LEADERBOARD#GLOBAL",
-                GSI1SK:   newWinnerElo,
-                userId:   winnerId,
+                PK: `USER#${winnerId}`,
+                SK: "LEADERBOARD",
+                GSI1PK: "LEADERBOARD#GLOBAL",
+                GSI1SK: newWinnerElo,
+                userId: winnerId,
                 username: winnerObj.username
               }
             }
@@ -180,11 +180,11 @@ export async function POST(req: Request) {
             Put: {
               TableName: TABLE,
               Item: {
-                PK:       `USER#${loserId}`,
-                SK:       "LEADERBOARD",
-                GSI1PK:   "LEADERBOARD#GLOBAL",
-                GSI1SK:   newLoserElo,
-                userId:   loserId,
+                PK: `USER#${loserId}`,
+                SK: "LEADERBOARD",
+                GSI1PK: "LEADERBOARD#GLOBAL",
+                GSI1SK: newLoserElo,
+                userId: loserId,
                 username: loserObj.username
               }
             }
@@ -237,7 +237,7 @@ export async function POST(req: Request) {
       match: finalizedMatch,
       data: {
         winner: { id: winnerId, newElo: newWinnerElo },
-        loser:  { id: loserId, newElo: newLoserElo }
+        loser: { id: loserId, newElo: newLoserElo }
       }
     }, { status: 200 });
 
