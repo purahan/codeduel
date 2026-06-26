@@ -783,7 +783,7 @@ export default function MatchArena() {
                     borderBottom: language === lang ? "2px solid #8b8eff" : "2px solid transparent",
                   }}
                 >
-                  {LANG_LABELS[lang]}
+                  {LANGUAGE_LABELS[lang]}
                 </button>
               ))}
             </div>
@@ -889,7 +889,7 @@ export default function MatchArena() {
               {code.split("\n").length} lines
             </span>
             <span style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-              {LANG_LABELS[language]}
+              {LANGUAGE_LABELS[language]}
             </span>
           </div>
         </div>
