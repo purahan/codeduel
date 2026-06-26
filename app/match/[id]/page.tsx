@@ -134,10 +134,7 @@ export default function MatchArena() {
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
 
   const [exiting, setExiting] = useState(false);
-  const [blurWarnings, setBlurWarnings] = useState(0);
 
-  // QA / Dev Toggle
-  const [devBypass, setDevBypass] = useState(false);
   const myUsername = match && myRole ? match[myRole as "player1" | "player2"].username : "";
   const u = (session?.user as any);
   const isDev =
@@ -406,7 +403,7 @@ export default function MatchArena() {
       const res = await fetch("/api/match/forfeit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId: match?.matchId, devBypass }),
+        body: JSON.stringify({ matchId: match?.matchId }),
       });
 
       if (res.ok) {
@@ -698,18 +695,7 @@ export default function MatchArena() {
         </div>
       </div>
 
-      {/* QA Bypass Toggle */}
-      {isDev && (
-        <div style={{
-          position: "absolute", bottom: 20, left: 20, zIndex: 9999,
-          background: devBypass ? "#eab308" : "#333", color: devBypass ? "#000" : "#fff",
-          padding: "8px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer",
-          border: "2px solid #000",
-          boxShadow: "0 4px 6px rgba(0,0,0,0.3)"
-        }} onClick={() => setDevBypass(!devBypass)}>
-          QA Bypass: {devBypass ? "ON" : "OFF"}
-        </div>
-      )}
+
 
       {/* Main layout: problem | editor */}
       <div style={s.body}>
