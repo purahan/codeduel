@@ -33,7 +33,7 @@ interface PlayerSlot {
 
 interface Match {
   matchId: string;
-  status: "active" | "finished" | "forfeited" | "timed_out";
+  status: "active" | "finished" | "forfeited" | "timed_out" | "cancelled";
   startedAt: number;
   finishedAt: number | null;
   winnerId: string | null;
