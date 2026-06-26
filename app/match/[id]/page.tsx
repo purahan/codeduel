@@ -136,8 +136,8 @@ export default function MatchArena() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
 
-  // Forfeit state
   const [exiting, setExiting] = useState(false);
+  const [blurWarnings, setBlurWarnings] = useState(0);
 
   // Hint state
   const [hintLoading, setHintLoading] = useState(false);
@@ -364,11 +364,13 @@ export default function MatchArena() {
 
   // ── Forfeit Match ──────────────────────────────────────────────────────────
   
-  const handleForfeit = async () => {
+  const handleForfeit = async (forceSilent?: boolean) => {
     if (exiting || matchOver) return;
     
-    const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
-    if (!confirm) return;
+    if (!forceSilent) {
+      const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
+      if (!confirm) return;
+    }
 
     setExiting(true);
     try {
@@ -428,6 +430,32 @@ export default function MatchArena() {
       setHintLoading(false);
     }
   };
+
+  // ── Focus Mode Anti-Cheat ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!match || match.status !== "active" || matchOver || exiting) return;
+
+    const handleBlur = () => {
+      if (!match || match.status !== "active" || matchOver || exiting) return;
+
+      setBlurWarnings((prev) => {
+        const newWarnings = prev + 1;
+        if (newWarnings < 3) {
+          alert(`⚠️ Focus Lost: Please stay in the CodeDuel arena! (Warning ${newWarnings}/3)`);
+        } else {
+          // Immediately forfeit
+          handleForfeit(true);
+        }
+        return newWarnings;
+      });
+    };
+
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.status, matchOver, exiting]);
 
   // ─── Loading / error states ─────────────────────────────────────────────────
 
@@ -616,7 +644,7 @@ export default function MatchArena() {
 
           {/* Forfeit Button */}
           <button
-            onClick={handleForfeit}
+            onClick={() => handleForfeit(false)}
             disabled={exiting || submitting}
             style={{
               ...s.exitBtn,
