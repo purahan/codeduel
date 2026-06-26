@@ -59,9 +59,70 @@ export async function POST(req: Request) {
     const winnerId = winnerObj.userId;
     const loserId  = loserObj.userId;
 
-    // Calculate the point delta
-    const newWinnerElo = calcElo(winnerObj.elo, loserObj.elo, true);
-    const newLoserElo  = calcElo(loserObj.elo, winnerObj.elo, false);
+    // Fetch the live profile ELOs instead of relying on the old match snapshot
+    const [winnerRes, loserRes] = await Promise.all([
+      dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${winnerId}`, SK: "PROFILE" } })),
+      dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
+    ]);
+
+    // ── 90-Second Remake & Escalating Ban Check ──
+    const forfeitTime = Date.now();
+    const elapsedSeconds = (forfeitTime - match.startedAt) / 1000;
+
+    if (elapsedSeconds <= 90) {
+      const currentLeaves = loserRes.Item?.earlyLeaveCount ?? 0;
+      const newLeaveCount = currentLeaves + 1;
+      
+      // Escalating Math: 3m -> 5m -> 7m ... capped at 120m
+      const banMinutes = Math.min(120, 3 + (newLeaveCount - 1) * 2);
+      const bannedUntil = forfeitTime + (banMinutes * 60 * 1000);
+
+      await dynamo.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: `MATCH#${matchId}`, SK: "META" },
+                UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by",
+                ExpressionAttributeNames: { "#s": "status" },
+                ExpressionAttributeValues: {
+                  ":status": "cancelled",
+                  ":now":    forfeitTime,
+                  ":by":     "early_forfeit"
+                }
+              }
+            },
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
+                UpdateExpression: "SET queueBanUntil = :ban, earlyLeaveCount = :cnt",
+                ExpressionAttributeValues: {
+                  ":ban": bannedUntil,
+                  ":cnt": newLeaveCount
+                }
+              }
+            }
+          ]
+        })
+      );
+
+      const finalizedMatch = {
+        ...match,
+        status: "cancelled",
+        finishedAt: forfeitTime,
+        endedBy: "early_forfeit"
+      };
+
+      return NextResponse.json({ status: "cancelled", bannedUntil, match: finalizedMatch }, { status: 200 });
+    }
+
+    const liveWinnerElo = winnerRes.Item?.elo ?? winnerObj.elo;
+    const liveLoserElo  = loserRes.Item?.elo ?? loserObj.elo;
+
+    const newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
+    const newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
 
     const now = Date.now();
 
@@ -91,11 +152,11 @@ export async function POST(req: Request) {
               TableName: TABLE,
               Key: { PK: `USER#${winnerId}`, SK: "PROFILE" },
               UpdateExpression: "SET elo = :elo ADD wins :one",
-              ConditionExpression: "elo = :oldElo",
+              ConditionExpression: "elo = :liveElo",
               ExpressionAttributeValues: {
-                ":elo":    newWinnerElo,
-                ":oldElo": winnerObj.elo,
-                ":one":    1
+                ":elo":     newWinnerElo,
+                ":liveElo": liveWinnerElo,
+                ":one":     1
               }
             }
           },
@@ -121,11 +182,11 @@ export async function POST(req: Request) {
               TableName: TABLE,
               Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
               UpdateExpression: "SET elo = :elo ADD losses :one",
-              ConditionExpression: "elo = :oldElo",
+              ConditionExpression: "elo = :liveElo",
               ExpressionAttributeValues: {
-                ":elo":    newLoserElo,
-                ":oldElo": loserObj.elo,
-                ":one":    1
+                ":elo":     newLoserElo,
+                ":liveElo": liveLoserElo,
+                ":one":     1
               }
             }
           },
@@ -175,10 +236,21 @@ export async function POST(req: Request) {
       console.error("Failed to sync match_result to Postgres:", err);
     }
 
+    const finalizedMatch = {
+      ...match,
+      status: "forfeited",
+      winnerId: winnerId,
+      finishedAt: now,
+      endedBy: "forfeit",
+      player1: { ...match.player1, elo: isPlayer1 ? newLoserElo : newWinnerElo },
+      player2: { ...match.player2, elo: isPlayer1 ? newWinnerElo : newLoserElo }
+    };
+
     return NextResponse.json({
       status: "forfeited",
       leaverId: loserId,
       winnerId: winnerId,
+      match: finalizedMatch,
       data: {
         winner: { id: winnerId, newElo: newWinnerElo },
         loser:  { id: loserId, newElo: newLoserElo }

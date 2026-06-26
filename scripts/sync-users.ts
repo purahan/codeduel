@@ -1,69 +1,68 @@
-import fs from "fs";
-import postgres from "postgres";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import postgres from "postgres";
+import dotenv from "dotenv";
 
-const envFile = fs.readFileSync(".env.local", "utf-8");
-const dbUrlMatch = envFile.match(/^DATABASE_URL=(.*)$/m);
-const dbUrl = dbUrlMatch ? dbUrlMatch[1].replace(/["']/g, '') : "";
-
-const sql = postgres(dbUrl, { ssl: "require", max: 5 });
-
-// DynamoDB config
-const regionMatch = envFile.match(/^AWS_REGION=(.*)$/m);
-const accessMatch = envFile.match(/^AWS_ACCESS_KEY_ID=(.*)$/m);
-const secretMatch = envFile.match(/^AWS_SECRET_ACCESS_KEY=(.*)$/m);
+dotenv.config({ path: ".env.local" });
 
 const client = new DynamoDBClient({
-  region: regionMatch ? regionMatch[1].replace(/["']/g, '') : "eu-north-1",
+  region: process.env.AWS_REGION ?? "eu-north-1",
   credentials: {
-    accessKeyId: accessMatch ? accessMatch[1].replace(/["']/g, '') : "",
-    secretAccessKey: secretMatch ? secretMatch[1].replace(/["']/g, '') : "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 const dynamo = DynamoDBDocumentClient.from(client);
+const TABLE = "CodeDuelTable";
 
-async function run() {
+const sql = postgres(process.env.DATABASE_URL || "", { ssl: "require" });
+
+async function syncUsers() {
+  console.log("🔄 Starting DynamoDB -> PostgreSQL User Sync...");
+
   try {
-    console.log("Fetching existing users from DynamoDB...");
-    const scan = await dynamo.send(
-      new ScanCommand({
-        TableName: "CodeDuelTable",
-        FilterExpression: "SK = :sk",
-        ExpressionAttributeValues: { ":sk": "PROFILE" },
-      })
-    );
+    let exclusiveStartKey: any = undefined;
+    let syncedCount = 0;
 
-    const users = scan.Items || [];
-    console.log(`Found ${users.length} users. Syncing to Aurora Postgres...`);
+    do {
+      const result = await dynamo.send(new ScanCommand({
+        TableName: TABLE,
+        FilterExpression: "SK = :profileSk AND begins_with(PK, :userPk)",
+        ExpressionAttributeValues: {
+          ":profileSk": "PROFILE",
+          ":userPk": "USER#",
+        },
+        ExclusiveStartKey: exclusiveStartKey,
+      }));
 
-    let synced = 0;
-    for (const u of users) {
-      if (!u.userId) continue;
-      
-      const ghId = parseInt(u.userId);
-      const ghUsername = u.username || "anonymous";
-      const email = u.email || null;
-      const avatar = u.avatar || null;
+      const items = result.Items || [];
+      console.log(`   Found ${items.length} users in current page. Syncing...`);
 
-      try {
+      for (const user of items) {
+        const ghId = parseInt(user.userId);
+        const ghUsername = user.username ?? "anonymous";
+        
         await sql`
           INSERT INTO users (github_id, github_username, email, avatar_url, last_login_at)
-          VALUES (${ghId}, ${ghUsername}, ${email}, ${avatar}, NOW())
-          ON CONFLICT (github_id) DO NOTHING
+          VALUES (${ghId}, ${ghUsername}, ${user.email ?? null}, ${user.avatar ?? null}, NOW())
+          ON CONFLICT (github_id) 
+          DO UPDATE SET 
+            avatar_url = EXCLUDED.avatar_url,
+            github_username = EXCLUDED.github_username
         `;
-        synced++;
-      } catch (err) {
-        console.error(`Failed to sync ${ghUsername}:`, err);
+        syncedCount++;
       }
-    }
 
-    console.log(`Successfully synced ${synced} users!`);
+      exclusiveStartKey = result.LastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    console.log(`✅ Sync complete! ${syncedCount} users have been successfully restored to PostgreSQL.`);
+    process.exit(0);
+
   } catch (error) {
-    console.error("Sync failed:", error);
-  } finally {
-    await sql.end();
+    console.error("❌ Failed to sync users:", error);
+    process.exit(1);
   }
 }
 
-run();
+syncUsers();

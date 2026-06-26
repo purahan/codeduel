@@ -33,12 +33,13 @@ interface PlayerSlot {
 
 interface Match {
   matchId: string;
-  status: "active" | "finished";
+  status: "active" | "finished" | "forfeited" | "timed_out" | "cancelled";
   startedAt: number;
   finishedAt: number | null;
   winnerId: string | null;
   player1: PlayerSlot;
   player2: PlayerSlot;
+  endedBy?: string | null;
 }
 
 interface SubmitResult {
@@ -117,6 +118,7 @@ export default function MatchArena() {
 
   // Match state
   const [match, setMatch] = useState<Match | null>(null);
+  const [finalMatchPayload, setFinalMatchPayload] = useState<Match | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [myRole, setMyRole] = useState<"player1" | "player2" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -134,8 +136,8 @@ export default function MatchArena() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
 
-  // Forfeit state
   const [exiting, setExiting] = useState(false);
+  const [blurWarnings, setBlurWarnings] = useState(0);
 
   // Hint state
   const [hintLoading, setHintLoading] = useState(false);
@@ -152,6 +154,14 @@ export default function MatchArena() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const myId = (session?.user as any)?.id as string | undefined;
+
+  // ── Poll opponent status every 3s ──────────────────────────────────────────
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   // ── Redirect if not authed ─────────────────────────────────────────────────
   // ── Poll opponent status every 3s ──────────────────────────────────────────
@@ -174,6 +184,7 @@ export default function MatchArena() {
             alert("The opponent has forfeited the match! You win by default.");
           }
 
+          setFinalMatchPayload(data.match);
           setMatchOver(true);
           setWon(resolveWon(data.match, myId));
           stopPolling();
@@ -210,7 +221,8 @@ export default function MatchArena() {
       }
 
       // Check if match is already over
-      if (data.match.status === "finished") {
+      if (data.match.status !== "active") {
+        setFinalMatchPayload(data.match);
         setMatchOver(true);
         setWon(resolveWon(data.match, myId));
         stopPolling();
@@ -242,7 +254,8 @@ export default function MatchArena() {
             if (!myRole && data.myRole) setMyRole(data.myRole);
             if (!code && data.problem?.starterCode)
               setCode(data.problem.starterCode[language] ?? "");
-            if (data.match.status === "finished") {
+            if (data.match.status !== "active") {
+              setFinalMatchPayload(data.match);
               setMatchOver(true);
               setWon(resolveWon(data.match, myId));
               stopPolling();
@@ -283,43 +296,9 @@ export default function MatchArena() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, matchId]);
 
-  // ── Poll opponent status every 3s ──────────────────────────────────────────
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
+  
 
-  useEffect(() => {
-    if (!match || match.status !== "active") return; // Changed to !== "active"
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/match/${matchId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setMatch(data.match);
-
-        if (data.match.status !== "active") { // Changed to !== "active"
-          
-          // Show alert to Player B if Player A forfeited
-          if (data.match.status === "forfeited" && match?.status === "active") {
-            alert("The opponent has forfeited the match! You win by default.");
-          }
-
-          setMatchOver(true);
-          setWon(resolveWon(data.match, myId));
-          stopPolling();
-          if (timerRef.current) clearInterval(timerRef.current);
-        }
-      } catch {
-        // keep polling
-      }
-    }, 3000);
-
-    return () => stopPolling();
-  }, [match?.status, matchId, myId, stopPolling]);
+  
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -332,6 +311,7 @@ export default function MatchArena() {
 
       if (left === 0) {
         if (timerRef.current) clearInterval(timerRef.current);
+        setFinalMatchPayload({ ...match, status: "timed_out", endedBy: "timeout" } as Match);
         setMatchOver(true);
         setWon(null); // timeout = time's up (not the same as losing a match)
       }
@@ -384,11 +364,13 @@ export default function MatchArena() {
 
   // ── Forfeit Match ──────────────────────────────────────────────────────────
   
-  const handleForfeit = async () => {
+  const handleForfeit = async (forceSilent?: boolean) => {
     if (exiting || matchOver) return;
     
-    const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
-    if (!confirm) return;
+    if (!forceSilent) {
+      const confirm = window.confirm("Are you sure you want to forfeit? You will instantly lose this match and your ELO rating will decrease.");
+      if (!confirm) return;
+    }
 
     setExiting(true);
     try {
@@ -449,6 +431,32 @@ export default function MatchArena() {
     }
   };
 
+  // ── Focus Mode Anti-Cheat ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!match || match.status !== "active" || matchOver || exiting) return;
+
+    const handleBlur = () => {
+      if (!match || match.status !== "active" || matchOver || exiting) return;
+
+      setBlurWarnings((prev) => {
+        const newWarnings = prev + 1;
+        if (newWarnings < 3) {
+          alert(`⚠️ Focus Lost: Please stay in the CodeDuel arena! (Warning ${newWarnings}/3)`);
+        } else {
+          // Immediately forfeit
+          handleForfeit(true);
+        }
+        return newWarnings;
+      });
+    };
+
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.status, matchOver, exiting]);
+
   // ─── Loading / error states ─────────────────────────────────────────────────
 
   if (authStatus === "loading" || (!match && !loadError)) {
@@ -502,35 +510,52 @@ export default function MatchArena() {
   if (matchOver) {
     const eloChange = submitResult?.eloChange;
     const newElo = submitResult?.newElo;
+    const modalMatch = finalMatchPayload || match;
+
+    let title = "";
+    let color = "";
+    let subtext = "";
+
+    if (modalMatch.status === "cancelled") {
+      title = "Match Remade 🔄";
+      color = "#fbbf24";
+      subtext = "Opponent left in the first 90 seconds. No ELO gained or lost.";
+    } else if (modalMatch.status === "forfeited") {
+      title = "Opponent Forfeited 🏳️";
+      color = "#f87171";
+      subtext = "The other player abandoned the duel. You win by default!";
+    } else if (modalMatch.endedBy === "timeout") {
+      title = "Time's Up ⏰";
+      color = "#f87171";
+      subtext = "";
+    } else {
+      title = won === true ? "You Won! 🏆" : won === false ? "You Lost 💀" : "Time's Up ⏰";
+      color = won === true ? "#7cff6b" : "#f87171";
+      if (modalMatch.winnerId) {
+        subtext = won
+          ? `You outran ${opponent.username}`
+          : `${modalMatch[myRole === "player1" ? "player2" : "player1"].username === modalMatch.winnerId
+              ? opponent.username
+              : me.username} won this duel`;
+      }
+    }
 
     return (
       <div style={s.modalOverlay}>
         <div style={s.modal}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>
-            {match.status === "forfeited" ? "🏳️" : won === true ? "🏆" : won === false ? "💀" : "⏰"}
-          </div>
-          
-          <h2 style={{ ...s.modalTitle, color: match.status === "forfeited" ? "#f87171" : won ? "#7cff6b" : "#f87171" }}>
-            {match.status === "forfeited" 
-              ? "Opponent Forfeited" 
-              : won === true ? "You Won!" : won === false ? "You Lost" : "Time's Up"
-            }
+          <h2 style={{ ...s.modalTitle, color }}>
+            {title}
           </h2>
 
-          {match.status === "forfeited" ? (
-            <p style={{ color: "#f87171", fontSize: 13, marginBottom: 20 }}>
-              The other player abandoned the duel. You win by default!
+          {subtext && (
+            <p style={{
+              ...(modalMatch.status === "cancelled" || modalMatch.status === "forfeited"
+                ? { color, fontSize: 13, marginBottom: 20 }
+                : s.modalSub)
+            }}>
+              {subtext}
             </p>
-          ) : match.winnerId ? (
-            <p style={s.modalSub}>
-              {won
-                ? `You outran ${opponent.username}`
-                : `${match[myRole === "player1" ? "player2" : "player1"].username === match.winnerId
-                    ? opponent.username
-                    : me.username} won this duel`
-              }
-            </p>
-          ) : null}
+          )}
           {submitResult?.testsPassed !== undefined && (
             <div style={s.modalStats}>
               <div style={s.modalStat}>
@@ -619,7 +644,7 @@ export default function MatchArena() {
 
           {/* Forfeit Button */}
           <button
-            onClick={handleForfeit}
+            onClick={() => handleForfeit(false)}
             disabled={exiting || submitting}
             style={{
               ...s.exitBtn,
