@@ -29,6 +29,12 @@ export function useMatchmaking() {
       });
       const data = await res.json();
 
+      if (res.status === 403 && data.error === "Queue Banned") {
+        alert(data.message);
+        setMatchState("idle");
+        return;
+      }
+
       if (data.matchId && res.ok) {
         router.push(`/match/${data.matchId}`);
         return;
@@ -38,7 +44,11 @@ export function useMatchmaking() {
         router.push(`/match/${data.matchId}`);
         return;
       }
-    } catch {}
+    } catch (e) {
+      console.error(e);
+      setMatchState("idle");
+      return;
+    }
 
     pollRef.current = setInterval(async () => {
       try {
@@ -48,6 +58,14 @@ export function useMatchmaking() {
           body
         });
         const data = await res.json();
+        
+        if (res.status === 403 && data.error === "Queue Banned") {
+          stopPolling();
+          alert(data.message);
+          setMatchState("idle");
+          return;
+        }
+
         if (data.matchId) {
           stopPolling();
           router.push(`/match/${data.matchId}`);
