@@ -65,6 +65,52 @@ export async function POST(req: Request) {
       dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
     ]);
 
+    // ── 90-Second Remake & Escalating Ban Check ──
+    const forfeitTime = Date.now();
+    const elapsedSeconds = (forfeitTime - match.startedAt) / 1000;
+
+    if (elapsedSeconds <= 90) {
+      const currentLeaves = loserRes.Item?.earlyLeaveCount ?? 0;
+      const newLeaveCount = currentLeaves + 1;
+      
+      // Escalating Math: 3m -> 5m -> 7m ... capped at 120m
+      const banMinutes = Math.min(120, 3 + (newLeaveCount - 1) * 2);
+      const bannedUntil = forfeitTime + (banMinutes * 60 * 1000);
+
+      await dynamo.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: `MATCH#${matchId}`, SK: "META" },
+                UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by",
+                ExpressionAttributeNames: { "#s": "status" },
+                ExpressionAttributeValues: {
+                  ":status": "cancelled",
+                  ":now":    forfeitTime,
+                  ":by":     "early_forfeit"
+                }
+              }
+            },
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
+                UpdateExpression: "SET queueBanUntil = :ban, earlyLeaveCount = :cnt",
+                ExpressionAttributeValues: {
+                  ":ban": bannedUntil,
+                  ":cnt": newLeaveCount
+                }
+              }
+            }
+          ]
+        })
+      );
+
+      return NextResponse.json({ status: "cancelled", bannedUntil }, { status: 200 });
+    }
+
     const liveWinnerElo = winnerRes.Item?.elo ?? winnerObj.elo;
     const liveLoserElo  = loserRes.Item?.elo ?? loserObj.elo;
 
