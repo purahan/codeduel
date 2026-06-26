@@ -18,14 +18,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId   = (session.user as any).id as string;
+  const userId = (session.user as any).id as string;
   const username = session.user.name ?? "anonymous";
 
   let requestedProblemId: string | undefined = undefined;
   try {
     const body = await req.json();
     requestedProblemId = body.problemId;
-  } catch (err) {}
+  } catch (err) { }
 
   // 2 — Get current ELO
   const userItem = await dynamo.send(
@@ -41,11 +41,11 @@ export async function POST(req: Request) {
   if (Date.now() < banUntil) {
     const secondsLeft = Math.ceil((banUntil - Date.now()) / 1000);
     return NextResponse.json(
-      { 
-        error: "Queue Banned", 
+      {
+        error: "Queue Banned",
         message: `You abandoned a match early. You can queue again in ${secondsLeft} seconds.`,
-        secondsLeft 
-      }, 
+        secondsLeft
+      },
       { status: 403 }
     );
   }
@@ -58,9 +58,9 @@ export async function POST(req: Request) {
         "SK = :sk AND #s = :active AND (player1.userId = :uid OR player2.userId = :uid)",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
-        ":sk":     "META",
+        ":sk": "META",
         ":active": "active",
-        ":uid":    userId,
+        ":uid": userId,
       },
       // No Limit — DynamoDB's Limit applies BEFORE FilterExpression, so a
       // small limit would miss matches that aren't in the first N raw rows.
@@ -99,17 +99,24 @@ export async function POST(req: Request) {
       ExpressionAttributeNames: { "#ttl": "ttl" },
       ExpressionAttributeValues: {
         ":prefix": "QUEUE#",
-        ":sk":     "WAITING",
-        ":me":     userId,
-        ":now":    nowSec,
+        ":sk": "WAITING",
+        ":me": userId,
+        ":now": nowSec,
       },
     })
   );
 
+  const nowMsCurrent = Date.now();
   const eligible = (queueScan.Items ?? []).filter(
-    (item) => 
-      Math.abs((item.elo ?? 1200) - myElo) <= 200 &&
-      (!requestedProblemId || !item.requestedProblemId || item.requestedProblemId === requestedProblemId)
+    (item) => {
+      const opponentWaitTime = nowMsCurrent - (item.queuedAt ?? nowMsCurrent);
+      let allowedDiff = 200;
+      if (opponentWaitTime > 60000) allowedDiff = 800;
+      else if (opponentWaitTime >= 30000) allowedDiff = 400;
+
+      return Math.abs((item.elo ?? 1200) - myElo) <= allowedDiff &&
+        (!requestedProblemId || !item.requestedProblemId || item.requestedProblemId === requestedProblemId);
+    }
   );
 
   // 6a — Opponent found: atomically claim them then create the match
@@ -130,43 +137,43 @@ export async function POST(req: Request) {
             TableName: TABLE,
             Key: { PK: `QUEUE#${userId}`, SK: "WAITING" },
           })
-        ).catch(() => {});
+        ).catch(() => { });
       }
 
       const matchId = uuidv4();
       const finalProblemId = requestedProblemId || opponent.requestedProblemId;
       const problem = finalProblemId ? (getProblemById(finalProblemId) || getRandomProblem()) : getRandomProblem();
-      const now     = Date.now();
-      const ttl     = Math.floor(now / 1000) + 3600;
+      const now = Date.now();
+      const ttl = Math.floor(now / 1000) + 3600;
 
       await dynamo.send(
         new PutCommand({
           TableName: TABLE,
           Item: {
-            PK:        `MATCH#${matchId}`,
-            SK:        "META",
+            PK: `MATCH#${matchId}`,
+            SK: "META",
             matchId,
             problemId: problem.id,
-            status:    "active",
+            status: "active",
             startedAt: now,
             finishedAt: null,
-            winnerId:  null,
-            endedBy:   null,
+            winnerId: null,
+            endedBy: null,
             player1: {
               userId,
               username,
-              elo:       myElo,
+              elo: myElo,
               hintsUsed: 0,
               submitted: false,
-              passed:    false,
+              passed: false,
             },
             player2: {
-              userId:    opponent.userId,
-              username:  opponent.username,
-              elo:       opponent.elo ?? 1200,
+              userId: opponent.userId,
+              username: opponent.username,
+              elo: opponent.elo ?? 1200,
               hintsUsed: 0,
               submitted: false,
-              passed:    false,
+              passed: false,
             },
             ttl,
           },
@@ -190,11 +197,11 @@ export async function POST(req: Request) {
     new PutCommand({
       TableName: TABLE,
       Item: {
-        PK:       `QUEUE#${userId}`,
-        SK:       "WAITING",
+        PK: `QUEUE#${userId}`,
+        SK: "WAITING",
         userId,
         username,
-        elo:      myElo,
+        elo: myElo,
         queuedAt: Date.now(),
         ttl,
         requestedProblemId,
