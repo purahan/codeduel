@@ -1,13 +1,36 @@
-// Piston API — free, open source, no API key required
-// Docs: https://github.com/engineer-man/piston
+// =============================================================================
+// SECURITY-HARDENED CODE EXECUTION MODULE
+// =============================================================================
+//
+// SECURITY NOTE (2026-06-26):
+// The previous implementation contained a CRITICAL Remote Code Execution (RCE)
+// vulnerability. When the Piston API was unavailable, user-submitted code was
+// executed directly on the Vercel Lambda/server using child_process.exec().
+// This gave attackers full access to:
+//   - process.env (AWS keys, NEXTAUTH_SECRET, DATABASE_URL, GITHUB secrets)
+//   - The filesystem (read any file on the Lambda)
+//   - The network (exfiltrate data, pivot to internal services)
+//   - Full OS-level command execution
+//
+// THE FIX:
+// All local execution code has been PERMANENTLY REMOVED. This module now
+// exclusively uses the remote Piston API (sandboxed, isolated containers).
+// If Piston is unavailable, we return a structured error — we NEVER fall back
+// to local execution under ANY circumstances.
+//
+// REMOVED IMPORTS: child_process, fs, path, os
+// REMOVED FUNCTIONS: local exec() fallback, tmpFile creation
+// =============================================================================
 
-import { exec } from "child_process";
-import fs from "fs/promises";
-import path from "path";
-import os from "os";
 import { generatePythonWrapper, generateJavascriptWrapper } from "./wrappers";
 
 const PISTON_URL = "https://emkc.org/api/v2/piston";
+
+// Timeout for Piston API requests (10 seconds)
+const PISTON_TIMEOUT_MS = 10_000;
+
+// Maximum code size to send to Piston (100KB) — prevents abuse
+const MAX_CODE_SIZE_BYTES = 100_000;
 
 const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
   python:     { language: "python",     version: "3.10.0" },
@@ -16,6 +39,9 @@ const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
   java:       { language: "java",       version: "15.0.2" },
   typescript: { language: "typescript", version: "5.0.3" },
 };
+
+// Allowlist of supported languages — reject anything not in this set
+const SUPPORTED_LANGUAGES = new Set(Object.keys(LANGUAGE_MAP));
 
 export type ExecutionResult = {
   passed:    boolean;
@@ -26,6 +52,12 @@ export type ExecutionResult = {
   stdout:    string | null;
 };
 
+/**
+ * Execute a single test case against user code using the REMOTE Piston API.
+ *
+ * SECURITY: This function NEVER executes user code locally.
+ * If Piston is unreachable, it returns an execution_service_unavailable error.
+ */
 async function runSingle(
   code: string,
   language: string,
@@ -33,65 +65,117 @@ async function runSingle(
   expectedOutput: string,
   problemId: string
 ): Promise<ExecutionResult> {
+  // ── Input validation ──────────────────────────────────────────────────────
+
+  // Validate language against strict allowlist
+  if (!SUPPORTED_LANGUAGES.has(language)) {
+    return {
+      passed: false, status: "unsupported_language",
+      runtimeMs: null, memoryKb: null,
+      stderr: `Language "${language}" is not supported. Supported: ${[...SUPPORTED_LANGUAGES].join(", ")}`,
+      stdout: null,
+    };
+  }
+
+  // Enforce maximum code size to prevent abuse
+  if (Buffer.byteLength(code, "utf-8") > MAX_CODE_SIZE_BYTES) {
+    return {
+      passed: false, status: "code_too_large",
+      runtimeMs: null, memoryKb: null,
+      stderr: `Code exceeds maximum allowed size of ${MAX_CODE_SIZE_BYTES} bytes`,
+      stdout: null,
+    };
+  }
+
   const lang = LANGUAGE_MAP[language];
-  if (!lang) {
+
+  // ── Build wrapped code for supported languages ────────────────────────────
+
+  let finalCode = code;
+  if (language === "python") {
+    finalCode = generatePythonWrapper(code, problemId);
+  } else if (language === "javascript") {
+    finalCode = generateJavascriptWrapper(code, problemId);
+  }
+
+  // ── Call Piston API (remote sandboxed execution) ──────────────────────────
+
+  const start = Date.now();
+  let run: { stdout: string; stderr: string };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PISTON_TIMEOUT_MS);
+
+    const response = await fetch(`${PISTON_URL}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language: lang.language,
+        version:  lang.version,
+        files:    [{ content: finalCode }],
+        stdin:    input,
+        compile_timeout: 10000,
+        run_timeout:     3000,
+        compile_memory_limit: -1,
+        run_memory_limit:     -1,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      // SECURITY: Do NOT fall back to local execution.
+      // Return a structured error so the frontend can display an appropriate message.
+      console.error(
+        `[piston] Remote execution service returned HTTP ${response.status}`
+      );
+      return {
+        passed: false,
+        status: "execution_service_unavailable",
+        runtimeMs: null,
+        memoryKb: null,
+        stderr:
+          "Code execution service is temporarily unavailable. Please try again in a few moments.",
+        stdout: null,
+      };
+    }
+
+    const data = await response.json();
+
+    // Piston returns { run: { stdout, stderr, code, signal, output } }
+    run = {
+      stdout: data.run?.stdout ?? "",
+      stderr: data.run?.stderr ?? "",
+    };
+  } catch (err: any) {
+    // SECURITY: Network errors, timeouts, DNS failures — return error, NEVER local exec.
+    const isAbort = err.name === "AbortError";
+    console.error(
+      `[piston] ${isAbort ? "Request timed out" : "Network error"}: ${err.message}`
+    );
     return {
-      passed: false, status: "unsupported_language",
-      runtimeMs: null, memoryKb: null,
-      stderr: `Language ${language} not supported`, stdout: null,
+      passed: false,
+      status: "execution_service_unavailable",
+      runtimeMs: null,
+      memoryKb: null,
+      stderr: isAbort
+        ? "Code execution timed out. The execution service may be under heavy load."
+        : "Code execution service is temporarily unavailable. Please try again in a few moments.",
+      stdout: null,
     };
   }
 
-  // Piston API is dead (whitelist only), falling back to local execution!
-  let run: any = { stdout: "", stderr: "" };
-  let runtimeMs = 0;
+  const runtimeMs = Date.now() - start;
 
-  if (language === "python" || language === "javascript") {
-    const ext = language === "python" ? ".py" : ".js";
-    const cmd = language === "python" ? "python3" : "node";
-    const tmpFile = path.join(os.tmpdir(), `code_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
-    
-    let finalCode = code;
-    if (language === "python") {
-      finalCode = generatePythonWrapper(code, problemId);
-    } else if (language === "javascript") {
-      finalCode = generateJavascriptWrapper(code, problemId);
-    }
+  // ── Compare output ────────────────────────────────────────────────────────
 
-    await fs.writeFile(tmpFile, finalCode);
-    
-    const start = Date.now();
-    try {
-      const result = await new Promise<{stdout: string, stderr: string}>((resolve, reject) => {
-        const child = exec(`${cmd} ${tmpFile}`, { timeout: 3000 }, (error, stdout, stderr) => {
-          if (error && error.killed) reject(new Error("Timeout"));
-          else resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
-        });
-        if (input && child.stdin) {
-          child.stdin.write(input);
-          child.stdin.end();
-        }
-      });
-      run.stdout = result.stdout;
-      run.stderr = result.stderr;
-    } catch (err: any) {
-      run.stderr = err.message || "Execution failed";
-    }
-    runtimeMs = Date.now() - start;
-    await fs.unlink(tmpFile).catch(() => {});
-  } else {
-    return {
-      passed: false, status: "unsupported_language",
-      runtimeMs: null, memoryKb: null,
-      stderr: "Local fallback currently only supports Python and JavaScript. Piston API is disabled.", stdout: null,
-    };
-  }
-
-  const actualOutput = (run?.stdout ?? "").trim();
+  const actualOutput = (run.stdout ?? "").trim();
   const expected     = expectedOutput.trim();
   const passed       = actualOutput === expected;
 
-  if (run?.stderr && !passed) {
+  if (run.stderr && !passed) {
     console.error("PISTON ERROR:", run.stderr);
     return {
       passed: false, status: "runtime_error",
@@ -112,8 +196,8 @@ async function runSingle(
     status:    passed ? "accepted" : "wrong_answer",
     runtimeMs,
     memoryKb:  null,
-    stderr:    run?.stderr ?? null,
-    stdout:    run?.stdout ?? null,
+    stderr:    run.stderr ?? null,
+    stdout:    run.stdout ?? null,
   };
 }
 
@@ -137,6 +221,12 @@ export async function runAllTestCases(
 
   for (const tc of testCases) {
     const result = await runSingle(code, language, tc.input, tc.expectedOutput, problemId);
+
+    // If the execution service is unavailable, fail fast — don't keep retrying
+    if (result.status === "execution_service_unavailable") {
+      firstFailure = result;
+      break;
+    }
 
     if (result.passed) {
       passed++;

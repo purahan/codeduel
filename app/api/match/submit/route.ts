@@ -55,7 +55,9 @@ export async function POST(req: Request) {
     }
 
     // 6 — Run all test cases through Piston (free, open-source sandbox)
-    // NOTE: This network call creates a 1-5s processing delay where data states could drift
+    // SECURITY: Code is ONLY executed remotely via the Piston API (sandboxed containers).
+    // If Piston is unavailable, runAllTestCases returns an execution_service_unavailable
+    // status. We return HTTP 503 — we NEVER execute user code locally.
     const execution = await runAllTestCases(
       code,
       language,
@@ -64,6 +66,18 @@ export async function POST(req: Request) {
       problem.memoryLimit,
       problem.id
     );
+
+    // SECURITY: If the execution service is down, return 503 immediately.
+    // Do NOT record a submission or update match state when we couldn't actually run the code.
+    if (execution.firstFailure?.status === "execution_service_unavailable") {
+      return NextResponse.json(
+        {
+          error: "EXECUTION_SERVICE_UNAVAILABLE",
+          message: "Code execution service is temporarily unavailable. Please try again in a few moments.",
+        },
+        { status: 503 }
+      );
+    }
 
     const myRole = isPlayer1 ? "player1" : "player2";
     const opponentRole = isPlayer1 ? "player2" : "player1";
