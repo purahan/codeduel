@@ -275,8 +275,8 @@ export async function POST(req: Request) {
             (SELECT id FROM problems WHERE slug = ${problem.id}),
             (SELECT id FROM users WHERE github_id = ${winnerGhId}),
             (SELECT id FROM users WHERE github_id = ${loserGhId}),
-            ${winner.elo}, ${newWinnerElo},
-            ${loser.elo}, ${newLoserElo},
+            ${liveWinnerElo}, ${newWinnerElo},
+            ${liveLoserElo}, ${newLoserElo},
             ${durationSeconds}, 'submission', NOW()
           )
         `;

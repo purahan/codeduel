@@ -46,37 +46,7 @@ export async function GET(
   const myRole = match.player1.userId === userId ? "player1" : "player2";
   const opponentRole = myRole === "player1" ? "player2" : "player1";
 
-  // Auto-expire: if the match is still "active" but the timer has run out,
-  // mark it finished server-side so players aren't stuck in it.
-  if (
-    match.status === "active" &&
-    Date.now() - match.startedAt >= MATCH_DURATION_MS
-  ) {
-    const now = Date.now();
-    await dynamo.send(
-      new UpdateCommand({
-        TableName: TABLE,
-        Key: { PK: `MATCH#${matchId}`, SK: "META" },
-        UpdateExpression:
-          "SET #s = :finished, finishedAt = :now, endedBy = :reason",
-        ConditionExpression: "#s = :active", // only if still active (race-safe)
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: {
-          ":finished": "finished",
-          ":active":   "active",
-          ":now":      now,
-          ":reason":   "timeout",
-        },
-      })
-    ).catch(() => {
-      // If two clients race here, one will get ConditionalCheckFailed — ignore it
-    });
-
-    // Return the match as finished so the client shows "Time's Up"
-    match.status     = "finished";
-    match.finishedAt = now;
-    match.endedBy    = "timeout";
-  } else if (match.status === "active") {
+  if (match.status === "active") {
     // ── Ghost Abandon Heartbeat ──
     // 1. Update my last ping
     const now = Date.now();

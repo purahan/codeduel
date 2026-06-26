@@ -88,9 +88,10 @@ export async function POST(req: Request) {
           TableName: TABLE,
           Key: { PK: `MATCH#${matchId}`, SK: "META" },
           UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by, tie = :isTie, winnerId = :wid, newWinnerElo = :nwe, newLoserElo = :nle",
+          ConditionExpression: "#s = :active",
           ExpressionAttributeNames: { "#s": "status" },
           ExpressionAttributeValues: {
-            ":status": "timed_out", ":now": now, ":by": "timeout", ":isTie": isTie,
+            ":status": "timed_out", ":active": "active", ":now": now, ":by": "timeout", ":isTie": isTie,
             ":wid": winnerId, ":nwe": newWinnerElo, ":nle": newLoserElo
           }
         }
@@ -135,9 +136,10 @@ export async function POST(req: Request) {
           TableName: TABLE,
           Key: { PK: `MATCH#${matchId}`, SK: "META" },
           UpdateExpression: "SET #s = :status, finishedAt = :now, endedBy = :by, tie = :isTie",
+          ConditionExpression: "#s = :active",
           ExpressionAttributeNames: { "#s": "status" },
           ExpressionAttributeValues: {
-            ":status": "timed_out", ":now": now, ":by": "timeout", ":isTie": isTie
+            ":status": "timed_out", ":active": "active", ":now": now, ":by": "timeout", ":isTie": isTie
           }
         }
       });
