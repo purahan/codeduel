@@ -81,6 +81,8 @@ export async function POST(req: Request) {
 
     let newWinnerElo = 0;
     let newLoserElo = 0;
+    let liveWinnerElo = 0;
+    let liveLoserElo = 0;
 
     // 5 — CONSTRUCT TRANSACTION PATH BASED ON OUTCOME
     if (!isTie) {
@@ -93,8 +95,8 @@ export async function POST(req: Request) {
         dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
       ]);
 
-      const liveWinnerElo = winnerRes.Item?.elo ?? 1200;
-      const liveLoserElo  = loserRes.Item?.elo ?? 1200;
+      liveWinnerElo = winnerRes.Item?.elo ?? 1200;
+      liveLoserElo  = loserRes.Item?.elo ?? 1200;
 
       newWinnerElo = calcElo(liveWinnerElo, liveLoserElo, true);
       newLoserElo  = calcElo(liveLoserElo, liveWinnerElo, false);
@@ -187,8 +189,8 @@ export async function POST(req: Request) {
             (SELECT id FROM problems WHERE slug = ${problemId}),
             (SELECT id FROM users WHERE github_id = ${winnerGhId}),
             (SELECT id FROM users WHERE github_id = ${loserGhId}),
-            ${winnerObj.elo}, ${newWinnerElo},
-            ${loserObj.elo}, ${newLoserElo},
+            ${liveWinnerElo}, ${newWinnerElo},
+            ${liveLoserElo}, ${newLoserElo},
             ${durationSeconds}, 'timeout', NOW()
           )
         `;

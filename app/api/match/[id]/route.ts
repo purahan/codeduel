@@ -91,7 +91,7 @@ export async function GET(
     const opponent = match[opponentRole];
     const opponentLastPingAt = opponent.lastPingAt ?? match.startedAt;
     
-    if (now - opponentLastPingAt > 15000) {
+    if (now - opponentLastPingAt > 45000) {
       // Opponent disconnected!
       const winnerId = userId;
       const loserId = opponent.userId;
@@ -209,7 +209,7 @@ export async function GET(
   const visibleProblem = {
     ...problem,
     testCases:
-      match.status === "finished"
+      match.status !== "active"
         ? problem.testCases
         : problem.testCases.filter((tc) => !tc.isHidden),
   };

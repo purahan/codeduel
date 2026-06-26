@@ -138,10 +138,10 @@ export default function MatchArena() {
   const myUsername = match && myRole ? match[myRole as "player1" | "player2"].username : "";
   const u = (session?.user as any);
   const isDev =
-    myUsername === "Rishabh9877" ||
-    u?.name === "Rishabh9877" ||
-    u?.login === "Rishabh9877" ||
-    u?.preferred_username === "Rishabh9877" ||
+    myUsername === "Rishabh9877" || myUsername === "Rishabh-pec" ||
+    u?.name === "Rishabh9877" || u?.name === "Rishabh-pec" ||
+    u?.login === "Rishabh9877" || u?.login === "Rishabh-pec" ||
+    u?.preferred_username === "Rishabh9877" || u?.preferred_username === "Rishabh-pec" ||
     (u?.email && u.email.includes("rishabh"));
 
   // Hint state
@@ -474,31 +474,6 @@ export default function MatchArena() {
     }
   };
 
-  // ── Focus Mode Anti-Cheat ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!match || match.status !== "active" || matchOver || exiting || devBypass) return;
-
-    const handleBlur = () => {
-      if (!match || match.status !== "active" || matchOver || exiting || devBypass) return;
-
-      setBlurWarnings((prev) => {
-        const newWarnings = prev + 1;
-        if (newWarnings < 3) {
-          alert(`⚠️ Focus Lost: Please stay in the CodeDuel arena! (Warning ${newWarnings}/3)`);
-        } else {
-          // Immediately forfeit
-          handleForfeit(true);
-        }
-        return newWarnings;
-      });
-    };
-
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      window.removeEventListener("blur", handleBlur);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match?.status, matchOver, exiting, devBypass]);
 
   // ─── Loading / error states ─────────────────────────────────────────────────
 

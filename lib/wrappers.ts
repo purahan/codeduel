@@ -159,6 +159,26 @@ if __name__ == '__main__':
     res = solveNQueens(n)
     print(json.dumps(res).replace(' ', ''))
 `;
+  } else if (problemId === "edit-distance") {
+    suffix += `
+    word1 = input_data[0]
+    word2 = input_data[1]
+    res = minDistance(word1, word2)
+    print(json.dumps(res))
+`;
+  } else if (problemId === "word-ladder") {
+    suffix += `
+    beginWord = input_data[0]
+    endWord = input_data[1]
+    raw = input_data[2].strip()
+    if raw.startswith('['):
+        raw = raw[1:]
+    if raw.endswith(']'):
+        raw = raw[:-1]
+    wordList = [w.strip() for w in raw.split(',')]
+    res = ladderLength(beginWord, endWord, wordList)
+    print(json.dumps(res))
+`;
   } else {
     // Generic fallback: try to parse first arg and assume one arg function named like problemId
     suffix += `
@@ -260,11 +280,101 @@ if (!input_data || input_data.length === 0 || input_data[0] === '') process.exit
     let res = invertTree(root);
     console.log(JSON.stringify(serializeTree(res)));
 `;
+  } else if (problemId === "valid-anagram") {
+    suffix += `
+    let s = input_data[0];
+    let t = input_data[1];
+    let res = isAnagram(s, t);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "binary-search") {
+    suffix += `
+    let nums = JSON.parse(input_data[0]);
+    let target = JSON.parse(input_data[1]);
+    let res = search(nums, target);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "palindrome-number") {
+    suffix += `
+    let x = JSON.parse(input_data[0]);
+    let res = isPalindrome(x);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "contains-duplicate") {
+    suffix += `
+    let nums = JSON.parse(input_data[0]);
+    let res = containsDuplicate(nums);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "longest-substring-without-repeating-characters") {
+    suffix += `
+    let s = input_data[0];
+    let res = lengthOfLongestSubstring(s);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "course-schedule") {
+    suffix += `
+    let numCourses = JSON.parse(input_data[0]);
+    let prerequisites = JSON.parse(input_data[1]);
+    let res = canFinish(numCourses, prerequisites);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "coin-change") {
+    suffix += `
+    let coins = JSON.parse(input_data[0]);
+    let amount = JSON.parse(input_data[1]);
+    let res = coinChange(coins, amount);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "daily-temperatures") {
+    suffix += `
+    let temperatures = JSON.parse(input_data[0]);
+    let res = dailyTemperatures(temperatures);
+    console.log(JSON.stringify(res));
+`;
   } else if (problemId === "combinations") {
     suffix += `
     let n = JSON.parse(input_data[0]);
     let k = JSON.parse(input_data[1]);
     let res = combine(n, k);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "trapping-rain-water") {
+    suffix += `
+    let height = JSON.parse(input_data[0]);
+    let res = trap(height);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "reverse-nodes-in-k-group") {
+    suffix += `
+    let lst = JSON.parse(input_data[0]);
+    let k = JSON.parse(input_data[1]);
+    let head = buildList(lst);
+    let res = reverseKGroup(head, k);
+    console.log(JSON.stringify(serializeList(res)));
+`;
+  } else if (problemId === "n-queens") {
+    suffix += `
+    let n = JSON.parse(input_data[0]);
+    let res = solveNQueens(n);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "edit-distance") {
+    suffix += `
+    let word1 = input_data[0];
+    let word2 = input_data[1];
+    let res = minDistance(word1, word2);
+    console.log(JSON.stringify(res));
+`;
+  } else if (problemId === "word-ladder") {
+    suffix += `
+    let beginWord = input_data[0];
+    let endWord = input_data[1];
+    let raw = input_data[2].trim();
+    if (raw.startsWith('[')) raw = raw.slice(1);
+    if (raw.endsWith(']')) raw = raw.slice(0, -1);
+    let wordList = raw.split(',').map(w => w.trim());
+    let res = ladderLength(beginWord, endWord, wordList);
     console.log(JSON.stringify(res));
 `;
   } else {
@@ -280,5 +390,5 @@ if (!input_data || input_data.length === 0 || input_data[0] === '') process.exit
       `;
   }
 
-  return prefix + "\\n" + code + "\\n" + suffix;
+  return prefix + "\n" + code + "\n" + suffix;
 }

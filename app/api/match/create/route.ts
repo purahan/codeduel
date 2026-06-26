@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
   // Check for active matchmaking ban 
   const banUntil = userItem.Item?.queueBanUntil ?? 0;
-  const isDevBypass = userItem.Item?.username === "Rishabh9877";
+  const isDevBypass = userItem.Item?.username === "Rishabh9877" || userItem.Item?.username === "Rishabh-pec";
   if (!isDevBypass && Date.now() < banUntil) {
     const secondsLeft = Math.ceil((banUntil - Date.now()) / 1000);
     return NextResponse.json(

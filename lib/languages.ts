@@ -25,10 +25,10 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
   javascript: "JavaScript",
 };
 
-/** Piston runtime configuration for each supported language. */
-export const LANGUAGE_CONFIG: Record<SupportedLanguage, { language: string; version: string }> = {
-  python:     { language: "python",     version: "3.10.0" },
-  javascript: { language: "javascript", version: "18.15.0" },
+/** Piston + Judge0 runtime configuration for each supported language. */
+export const LANGUAGE_CONFIG: Record<SupportedLanguage, { language: string; version: string; judge0Id: number }> = {
+  python:     { language: "python",     version: "3.10.0", judge0Id: 71 },
+  javascript: { language: "javascript", version: "18.15.0", judge0Id: 93 },
 };
 
 /** Type guard: is this string a supported language key? */

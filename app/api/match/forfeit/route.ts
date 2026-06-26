@@ -65,19 +65,11 @@ export async function POST(req: Request) {
       dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `USER#${loserId}`, SK: "PROFILE" } }))
     ]);
 
-    // ── 90-Second Remake & Escalating Ban Check ──
+    // ── 90-Second Remake (No Ban) ──
     const forfeitTime = Date.now();
     const elapsedSeconds = (forfeitTime - match.startedAt) / 1000;
 
     if (elapsedSeconds <= 90) {
-      const isDevBypass = loserObj.username === "Rishabh9877" && devBypass === true;
-      const currentLeaves = loserRes.Item?.earlyLeaveCount ?? 0;
-      const newLeaveCount = currentLeaves + 1;
-      
-      // Escalating Math: 3m -> 5m -> 7m ... capped at 120m
-      const banMinutes = Math.min(120, 3 + (newLeaveCount - 1) * 2);
-      const bannedUntil = forfeitTime + (banMinutes * 60 * 1000);
-
       const transactItems: any[] = [
         {
           Update: {
@@ -94,21 +86,6 @@ export async function POST(req: Request) {
         }
       ];
 
-      // Skip penalizing the developer in devBypass mode
-      if (!isDevBypass) {
-        transactItems.push({
-          Update: {
-            TableName: TABLE,
-            Key: { PK: `USER#${loserId}`, SK: "PROFILE" },
-            UpdateExpression: "SET queueBanUntil = :ban, earlyLeaveCount = :cnt",
-            ExpressionAttributeValues: {
-              ":ban": bannedUntil,
-              ":cnt": newLeaveCount
-            }
-          }
-        });
-      }
-
       await dynamo.send(
         new TransactWriteCommand({
           TransactItems: transactItems
@@ -122,7 +99,7 @@ export async function POST(req: Request) {
         endedBy: "early_forfeit"
       };
 
-      return NextResponse.json({ status: "cancelled", bannedUntil, match: finalizedMatch }, { status: 200 });
+      return NextResponse.json({ status: "cancelled", match: finalizedMatch }, { status: 200 });
     }
 
     const liveWinnerElo = winnerRes.Item?.elo ?? 1200;
@@ -234,8 +211,8 @@ export async function POST(req: Request) {
           (SELECT id FROM problems WHERE slug = ${problemId}),
           (SELECT id FROM users WHERE github_id = ${winnerGhId}),
           (SELECT id FROM users WHERE github_id = ${loserGhId}),
-          ${winnerObj.elo}, ${newWinnerElo},
-          ${loserObj.elo}, ${newLoserElo},
+          ${liveWinnerElo}, ${newWinnerElo},
+          ${liveLoserElo}, ${newLoserElo},
           ${durationSeconds}, 'forfeit', NOW()
         )
       `;
