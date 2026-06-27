@@ -67,17 +67,10 @@ def serialize_list(head):
   let suffix = `
 if __name__ == '__main__':
     import traceback
-    try:
-        all_inputs = json.loads(sys.stdin.read())
-    except:
-        sys.exit(0)
-    
-    _duel_results = []
-    for test_input in all_inputs:
-        input_data = test_input.strip().split('\\n')
-        if not input_data or input_data == ['']:
-            _duel_results.append(None)
-            continue
+    input_data = sys.stdin.read().strip().split('\\n')
+    if not input_data or input_data == ['']:
+        print("null")
+    else:
         try:
 `;
 
@@ -86,72 +79,72 @@ if __name__ == '__main__':
             lst = json.loads(input_data[0])
             root = build_tree(lst)
             res = invertTree(root)
-            _duel_results.append(json.dumps(serialize_tree(res)).replace(' ', ''))
+            print(json.dumps(serialize_tree(res)).replace(' ', ''))
 `;
   } else if (problemId === "valid-anagram") {
     suffix += `
             s = input_data[0]
             t = input_data[1]
             res = isAnagram(s, t)
-            _duel_results.append(json.dumps(res).lower())
+            print(json.dumps(res).lower())
 `;
   } else if (problemId === "binary-search") {
     suffix += `
             nums = json.loads(input_data[0])
             target = json.loads(input_data[1])
             res = search(nums, target)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else if (problemId === "palindrome-number") {
     suffix += `
             x = json.loads(input_data[0])
             res = isPalindrome(x)
-            _duel_results.append(json.dumps(res).lower())
+            print(json.dumps(res).lower())
 `;
   } else if (problemId === "contains-duplicate") {
     suffix += `
             nums = json.loads(input_data[0])
             res = containsDuplicate(nums)
-            _duel_results.append(json.dumps(res).lower())
+            print(json.dumps(res).lower())
 `;
   } else if (problemId === "longest-substring-without-repeating-characters") {
     suffix += `
             s = input_data[0]
             res = lengthOfLongestSubstring(s)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else if (problemId === "course-schedule") {
     suffix += `
             numCourses = json.loads(input_data[0])
             prerequisites = json.loads(input_data[1])
             res = canFinish(numCourses, prerequisites)
-            _duel_results.append(json.dumps(res).lower())
+            print(json.dumps(res).lower())
 `;
   } else if (problemId === "coin-change") {
     suffix += `
             coins = json.loads(input_data[0])
             amount = json.loads(input_data[1])
             res = coinChange(coins, amount)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else if (problemId === "daily-temperatures") {
     suffix += `
             temperatures = json.loads(input_data[0])
             res = dailyTemperatures(temperatures)
-            _duel_results.append(json.dumps(res).replace(' ', ''))
+            print(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "combinations") {
     suffix += `
             n = json.loads(input_data[0])
             k = json.loads(input_data[1])
             res = combine(n, k)
-            _duel_results.append(json.dumps(res).replace(' ', ''))
+            print(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "trapping-rain-water") {
     suffix += `
             height = json.loads(input_data[0])
             res = trap(height)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else if (problemId === "reverse-nodes-in-k-group") {
     suffix += `
@@ -159,20 +152,20 @@ if __name__ == '__main__':
             k = json.loads(input_data[1])
             head = build_list(lst)
             res = reverseKGroup(head, k)
-            _duel_results.append(json.dumps(serialize_list(res)).replace(' ', ''))
+            print(json.dumps(serialize_list(res)).replace(' ', ''))
 `;
   } else if (problemId === "n-queens") {
     suffix += `
             n = json.loads(input_data[0])
             res = solveNQueens(n)
-            _duel_results.append(json.dumps(res).replace(' ', ''))
+            print(json.dumps(res).replace(' ', ''))
 `;
   } else if (problemId === "edit-distance") {
     suffix += `
             word1 = input_data[0]
             word2 = input_data[1]
             res = minDistance(word1, word2)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else if (problemId === "word-ladder") {
     suffix += `
@@ -185,21 +178,18 @@ if __name__ == '__main__':
                 raw = raw[:-1]
             wordList = [w.strip() for w in raw.split(',')]
             res = ladderLength(beginWord, endWord, wordList)
-            _duel_results.append(json.dumps(res))
+            print(json.dumps(res))
 `;
   } else {
     suffix += `
-            _duel_results.append("Wrapper not implemented for " + "${problemId}")
+            print("Wrapper not implemented for " + "${problemId}")
 `;
   }
 
   suffix += `
         except Exception as e:
-            _duel_results.append({"error": str(e), "traceback": traceback.format_exc()})
-            break
-
-    print("\\n---CODE_DUEL_RESULTS_START---")
-    print(json.dumps(_duel_results))
+            print(traceback.format_exc(), file=sys.stderr)
+            sys.exit(1)
 `;
 
   return prefix + "\n" + code + "\n" + suffix;
@@ -285,17 +275,12 @@ function serializeList(head) {
 
   let suffix = `
 const fs = require('fs');
-try {
-    const stdinRaw = fs.readFileSync(0, 'utf-8');
-    const all_inputs = JSON.parse(stdinRaw);
-    let _duel_results = [];
-    for (let test_input of all_inputs) {
-        const input_data = test_input.trim().split('\\n');
-        if (!input_data || input_data.length === 0 || input_data[0] === '') {
-            _duel_results.push(null);
-            continue;
-        }
-        try {
+const stdinRaw = fs.readFileSync(0, 'utf-8');
+const input_data = stdinRaw.trim().split('\\n');
+if (!input_data || input_data.length === 0 || input_data[0] === '') {
+    console.log("null");
+} else {
+    try {
 `;
 
   if (problemId === "invert-binary-tree") {
@@ -303,72 +288,72 @@ try {
             let lst = JSON.parse(input_data[0]);
             let root = buildTree(lst);
             let res = invertTree(root);
-            _duel_results.push(JSON.stringify(serializeTree(res)));
+            console.log(JSON.stringify(serializeTree(res)));
 `;
   } else if (problemId === "valid-anagram") {
     suffix += `
             let s = input_data[0];
             let t = input_data[1];
             let res = isAnagram(s, t);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "binary-search") {
     suffix += `
             let nums = JSON.parse(input_data[0]);
             let target = JSON.parse(input_data[1]);
             let res = search(nums, target);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "palindrome-number") {
     suffix += `
             let x = JSON.parse(input_data[0]);
             let res = isPalindrome(x);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "contains-duplicate") {
     suffix += `
             let nums = JSON.parse(input_data[0]);
             let res = containsDuplicate(nums);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "longest-substring-without-repeating-characters") {
     suffix += `
             let s = input_data[0];
             let res = lengthOfLongestSubstring(s);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "course-schedule") {
     suffix += `
             let numCourses = JSON.parse(input_data[0]);
             let prerequisites = JSON.parse(input_data[1]);
             let res = canFinish(numCourses, prerequisites);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "coin-change") {
     suffix += `
             let coins = JSON.parse(input_data[0]);
             let amount = JSON.parse(input_data[1]);
             let res = coinChange(coins, amount);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "daily-temperatures") {
     suffix += `
             let temperatures = JSON.parse(input_data[0]);
             let res = dailyTemperatures(temperatures);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "combinations") {
     suffix += `
             let n = JSON.parse(input_data[0]);
             let k = JSON.parse(input_data[1]);
             let res = combine(n, k);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "trapping-rain-water") {
     suffix += `
             let height = JSON.parse(input_data[0]);
             let res = trap(height);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "reverse-nodes-in-k-group") {
     suffix += `
@@ -376,20 +361,20 @@ try {
             let k = JSON.parse(input_data[1]);
             let head = buildList(lst);
             let res = reverseKGroup(head, k);
-            _duel_results.push(JSON.stringify(serializeList(res)));
+            console.log(JSON.stringify(serializeList(res)));
 `;
   } else if (problemId === "n-queens") {
     suffix += `
             let n = JSON.parse(input_data[0]);
             let res = solveNQueens(n);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "edit-distance") {
     suffix += `
             let word1 = input_data[0];
             let word2 = input_data[1];
             let res = minDistance(word1, word2);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else if (problemId === "word-ladder") {
     suffix += `
@@ -400,7 +385,7 @@ try {
             if (raw.endsWith(']')) raw = raw.slice(0, -1);
             let wordList = raw.split(',').map(w => w.trim());
             let res = ladderLength(beginWord, endWord, wordList);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
 `;
   } else {
       const camelId = problemId.split('-').map((s,i) => i===0 ? s : s[0].toUpperCase() + s.slice(1)).join('');
@@ -409,20 +394,15 @@ try {
                 try { return JSON.parse(i); } catch(e) { return i; }
             });
             let res = ${camelId}(...args);
-            _duel_results.push(JSON.stringify(res));
+            console.log(JSON.stringify(res));
       `;
   }
 
   suffix += `
-        } catch (e) {
-            _duel_results.push({ error: e.message, traceback: e.stack });
-            break;
-        }
+    } catch (e) {
+        console.error(e.stack);
+        process.exit(1);
     }
-    console.log("\\n---CODE_DUEL_RESULTS_START---");
-    console.log(JSON.stringify(_duel_results));
-} catch (e) {
-    process.exit(0);
 }
 `;
 
