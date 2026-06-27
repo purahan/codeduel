@@ -399,7 +399,7 @@ if (!input_data || input_data.length === 0 || input_data[0] === '') {
   }
 
   suffix += `
-    } catch (e) {
+        } catch (e) {
         console.error(e.stack);
         process.exit(1);
     }
@@ -418,6 +418,27 @@ export function generateCppWrapper(code: string, problemId: string): string {
 #include <algorithm>
 
 using namespace std;
+
+// Minimal Tree/List node defs so problems referencing these types at least
+// compile. Full tree/list (de)serialization for C++ is tracked separately
+// (see lib/languages.ts TODO, Issue #14) -- those problems still fall
+// through to the "not fully implemented" branch below at runtime.
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+
+struct ListNode {
+    int val;
+    ListNode *next;
+    ListNode() : val(0), next(nullptr) {}
+    ListNode(int x) : val(x), next(nullptr) {}
+    ListNode(int x, ListNode *next) : val(x), next(next) {}
+};
 
 vector<int> parseArray(string s) {
     vector<int> res;
@@ -509,9 +530,84 @@ int main() {
 }
 
 export function generateJavaWrapper(code: string, problemId: string): string {
-  let prefix = `
+  // IMPORTANT: Piston's java/15.0.2 package runs submissions via
+  // `java <file>.java` (the JEP 330 single-file source-code launcher),
+  // NOT `javac` + `java <ClassName>`. That launcher requires the class
+  // containing `public static void main(String[])` to be the FIRST
+  // top-level class declared in the file -- otherwise it fails immediately
+  // with "error: can't find main(String[]) method in class: <FirstClass>"
+  // before any user code even runs. So `Main` must be declared first here.
+  let mainPart = `
 import java.util.*;
 
+class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextLine()) return;
+        String line1 = sc.nextLine();
+        String line2 = sc.hasNextLine() ? sc.nextLine() : "";
+
+        Solution sol = new Solution();
+`;
+
+  if (problemId === "valid-anagram") {
+    mainPart += `
+        String s = Helper.stripQuotes(line1);
+        String t = Helper.stripQuotes(line2);
+        boolean res = sol.isAnagram(s, t);
+        System.out.println(res);
+`;
+  } else if (problemId === "binary-search") {
+    mainPart += `
+        int[] nums = Helper.parseArray(line1);
+        int target = Integer.parseInt(line2);
+        int res = sol.search(nums, target);
+        System.out.println(res);
+`;
+  } else if (problemId === "palindrome-number") {
+    mainPart += `
+        int x = Integer.parseInt(line1);
+        boolean res = sol.isPalindrome(x);
+        System.out.println(res);
+`;
+  } else if (problemId === "contains-duplicate") {
+    mainPart += `
+        int[] nums = Helper.parseArray(line1);
+        boolean res = sol.containsDuplicate(nums);
+        System.out.println(res);
+`;
+  } else if (problemId === "coin-change") {
+    mainPart += `
+        int[] coins = Helper.parseArray(line1);
+        int amount = Integer.parseInt(line2);
+        int res = sol.coinChange(coins, amount);
+        System.out.println(res);
+`;
+  } else if (problemId === "trapping-rain-water") {
+    mainPart += `
+        int[] height = Helper.parseArray(line1);
+        int res = sol.trap(height);
+        System.out.println(res);
+`;
+  } else {
+    mainPart += `
+        System.out.println("Java wrapper not fully implemented for this problem.");
+`;
+  }
+
+  mainPart += `
+    }
+}
+`;
+
+  // Helper utilities + minimal Tree/List node stubs declared AFTER Main
+  // (declaration order among non-launch classes doesn't matter to javac,
+  // only the launch class needs to be first). These stubs let problems
+  // referencing TreeNode/ListNode at least compile; full tree/list
+  // (de)serialization for Java is tracked separately (see
+  // lib/languages.ts TODO, Issue #14) -- those problems still fall
+  // through to the "not fully implemented" branch above at runtime.
+  let helperPart = `
 class Helper {
     public static int[] parseArray(String s) {
         s = s.replace("[", "").replace("]", "").replace(" ", "");
@@ -531,70 +627,36 @@ class Helper {
     }
 }
 
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+    TreeNode() {}
+    TreeNode(int val) { this.val = val; }
+    TreeNode(int val, TreeNode left, TreeNode right) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+}
+
+class ListNode {
+    int val;
+    ListNode next;
+    ListNode() {}
+    ListNode(int val) { this.val = val; }
+    ListNode(int val, ListNode next) {
+        this.val = val;
+        this.next = next;
+    }
+}
+
 class Solution {
 `;
 
   let suffix = `
 }
-
-class Main {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextLine()) return;
-        String line1 = sc.nextLine();
-        String line2 = sc.hasNextLine() ? sc.nextLine() : "";
-        
-        Solution sol = new Solution();
 `;
 
-  if (problemId === "valid-anagram") {
-    suffix += `
-        String s = Helper.stripQuotes(line1);
-        String t = Helper.stripQuotes(line2);
-        boolean res = sol.isAnagram(s, t);
-        System.out.println(res);
-`;
-  } else if (problemId === "binary-search") {
-    suffix += `
-        int[] nums = Helper.parseArray(line1);
-        int target = Integer.parseInt(line2);
-        int res = sol.search(nums, target);
-        System.out.println(res);
-`;
-  } else if (problemId === "palindrome-number") {
-    suffix += `
-        int x = Integer.parseInt(line1);
-        boolean res = sol.isPalindrome(x);
-        System.out.println(res);
-`;
-  } else if (problemId === "contains-duplicate") {
-    suffix += `
-        int[] nums = Helper.parseArray(line1);
-        boolean res = sol.containsDuplicate(nums);
-        System.out.println(res);
-`;
-  } else if (problemId === "coin-change") {
-    suffix += `
-        int[] coins = Helper.parseArray(line1);
-        int amount = Integer.parseInt(line2);
-        int res = sol.coinChange(coins, amount);
-        System.out.println(res);
-`;
-  } else if (problemId === "trapping-rain-water") {
-    suffix += `
-        int[] height = Helper.parseArray(line1);
-        int res = sol.trap(height);
-        System.out.println(res);
-`;
-  } else {
-    suffix += `
-        System.out.println("Java wrapper not fully implemented for this problem.");
-`;
-  }
-
-  suffix += `
-    }
-}
-`;
-  return prefix + "\n" + code + "\n" + suffix;
+  return mainPart + "\n" + helperPart + "\n" + code + "\n" + suffix;
 }
